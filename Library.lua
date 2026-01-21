@@ -1907,6 +1907,10 @@ do
             Func(Toggle.Value);
         end;
 
+        function Toggle:Get()
+          return Toggle.Value or "Error [1]"
+        end;
+
         function Toggle:SetValue(Bool)
             Bool = (not not Bool);
 
