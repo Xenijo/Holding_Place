@@ -2117,7 +2117,8 @@ do
         end;
 
         function Slider:SetText(string)
-           Sliderlabel.Text = string
+            Sliderlabel.Text = string
+            return true
         end;
 
         SliderInner.InputBegan:Connect(function(Input)
