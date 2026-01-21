@@ -29,15 +29,16 @@ local Library = {
 
     HudRegistry = {};
 
-    FontColor = Color3.fromRGB(255, 255, 255);
-    MainColor = Color3.fromRGB(28, 28, 28);
-    BackgroundColor = Color3.fromRGB(20, 20, 20);
-    AccentColor = Color3.fromRGB(0, 85, 255);
-    OutlineColor = Color3.fromRGB(50, 50, 50);
-    RiskColor = Color3.fromRGB(255, 50, 50),
+    -- Modernized color scheme (darker, slightly bluish accent)
+    FontColor = Color3.fromRGB(230, 230, 230);
+    MainColor = Color3.fromRGB(34, 40, 49);
+    BackgroundColor = Color3.fromRGB(24, 27, 33);
+    AccentColor = Color3.fromRGB(0, 153, 255);
+    OutlineColor = Color3.fromRGB(45, 50, 60);
+    RiskColor = Color3.fromRGB(235, 70, 70),
 
     Black = Color3.new(0, 0, 0);
-    Font = Enum.Font.Code,
+    Font = Enum.Font.Gotham, -- cleaner modern font
 
     OpenedFrames = {};
     DependencyBoxes = {};
@@ -118,6 +119,50 @@ function Library:AttemptSave()
     end;
 end;
 
+-- Small utility to add subtle modern styling to GUI elements
+function Library:ApplyModernStyling(Inst)
+    if not Inst or typeof(Inst) ~= 'Instance' then return end
+
+    -- Only apply to GUI objects where it makes sense
+    local class = Inst.ClassName
+    if not (class == 'Frame' or class == 'TextLabel' or class == 'TextBox' or class == 'TextButton' or class == 'ImageLabel' or class == 'ScrollingFrame') then
+        return
+    end
+
+    -- Avoid double-applying
+    if Inst:FindFirstChild('__modern_corner') then
+        return
+    end
+
+    local corner = Instance.new('UICorner')
+    corner.Name = '__modern_corner'
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = Inst
+
+    local stroke = Instance.new('UIStroke')
+    stroke.Name = '__modern_stroke'
+    stroke.Color = Library.OutlineColor
+    stroke.Transparency = 0.8
+    stroke.Thickness = 1
+    stroke.Parent = Inst
+
+    -- Slight drop shadow for larger panels (optional)
+    if Inst.ClassName == 'Frame' and (Inst.Size and (Inst.Size.Y.Offset >= 20 or Inst.Size.Y.Scale > 0)) then
+        -- add a subtle inner gradient for depth
+        local ok, grad = pcall(function()
+            local g = Instance.new('UIGradient')
+            g.Name = '__modern_gradient'
+            g.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 44, 54)),
+                ColorSequenceKeypoint.new(1, Library.MainColor)
+            })
+            g.Rotation = -90
+            g.Parent = Inst
+            return g
+        end)
+    end
+end
+
 function Library:Create(Class, Properties)
     local _Instance = Class;
 
@@ -125,9 +170,23 @@ function Library:Create(Class, Properties)
         _Instance = Instance.new(Class);
     end;
 
+    -- Apply properties if provided
+    Properties = Properties or {}
+
     for Property, Value in next, Properties do
         _Instance[Property] = Value;
     end;
+
+    -- Ensure every TextLabel has RichText enabled
+    if _Instance and typeof(_Instance) == 'Instance' then
+        local ok, isLabel = pcall(function() return _Instance:IsA('TextLabel') end)
+        if ok and isLabel then
+            pcall(function() _Instance.RichText = true end)
+        end
+    end
+
+    -- Apply modern styling to common gui objects
+    pcall(function() Library:ApplyModernStyling(_Instance) end)
 
     return _Instance;
 end;
@@ -196,19 +255,20 @@ function Library:AddToolTip(InfoStr, HoverInstance)
         BackgroundColor3 = Library.MainColor,
         BorderColor3 = Library.OutlineColor,
 
-        Size = UDim2.fromOffset(X + 5, Y + 4),
-        ZIndex = 100,
+        Size = UDim2.fromOffset(X + 10, Y + 8),
+        ZIndex = 1000,
         Parent = Library.ScreenGui,
 
         Visible = false,
     })
 
+    -- subtle padding and rounded corner applied by Create helper
     local Label = Library:CreateLabel({
-        Position = UDim2.fromOffset(3, 1),
+        Position = UDim2.fromOffset(6, 4),
         Size = UDim2.fromOffset(X, Y);
         TextSize = 14;
-        Text = InfoStr,
-        TextColor3 = Library.FontColor,
+        Text = InfoStr;
+        TextColor3 = Library.FontColor;
         TextXAlignment = Enum.TextXAlignment.Left;
         ZIndex = Tooltip.ZIndex + 1,
 
@@ -248,12 +308,16 @@ function Library:AddToolTip(InfoStr, HoverInstance)
     end)
 end
 
+-- Animate highlight transitions for a smoother modern effect
 function Library:OnHighlight(HighlightInstance, Instance, Properties, PropertiesDefault)
     HighlightInstance.MouseEnter:Connect(function()
         local Reg = Library.RegistryMap[Instance];
 
         for Property, ColorIdx in next, Properties do
-            Instance[Property] = Library[ColorIdx] or ColorIdx;
+            local target = Library[ColorIdx] or ColorIdx;
+            pcall(function()
+                TweenService:Create(Instance, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { [Property] = target }):Play()
+            end)
 
             if Reg and Reg.Properties[Property] then
                 Reg.Properties[Property] = ColorIdx;
@@ -265,7 +329,10 @@ function Library:OnHighlight(HighlightInstance, Instance, Properties, Properties
         local Reg = Library.RegistryMap[Instance];
 
         for Property, ColorIdx in next, PropertiesDefault do
-            Instance[Property] = Library[ColorIdx] or ColorIdx;
+            local target = Library[ColorIdx] or ColorIdx;
+            pcall(function()
+                TweenService:Create(Instance, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { [Property] = target }):Play()
+            end)
 
             if Reg and Reg.Properties[Property] then
                 Reg.Properties[Property] = ColorIdx;
@@ -463,9 +530,9 @@ do
             BackgroundColor3 = Color3.new(1, 1, 1);
             BorderColor3 = Color3.new(0, 0, 0);
             Position = UDim2.fromOffset(DisplayFrame.AbsolutePosition.X, DisplayFrame.AbsolutePosition.Y + 18),
-            Size = UDim2.fromOffset(230, Info.Transparency and 271 or 253);
+            Size = UDim2.fromOffset(260, Info.Transparency and 291 or 273); -- slightly wider modern picker
             Visible = false;
-            ZIndex = 15;
+            ZIndex = 150;
             Parent = ScreenGui,
         });
 
@@ -478,23 +545,23 @@ do
             BorderColor3 = Library.OutlineColor;
             BorderMode = Enum.BorderMode.Inset;
             Size = UDim2.new(1, 0, 1, 0);
-            ZIndex = 16;
+            ZIndex = 160;
             Parent = PickerFrameOuter;
         });
 
         local Highlight = Library:Create('Frame', {
             BackgroundColor3 = Library.AccentColor;
             BorderSizePixel = 0;
-            Size = UDim2.new(1, 0, 0, 2);
-            ZIndex = 17;
+            Size = UDim2.new(1, 0, 0, 3);
+            ZIndex = 170;
             Parent = PickerFrameInner;
         });
 
         local SatVibMapOuter = Library:Create('Frame', {
             BorderColor3 = Color3.new(0, 0, 0);
-            Position = UDim2.new(0, 4, 0, 25);
-            Size = UDim2.new(0, 200, 0, 200);
-            ZIndex = 17;
+            Position = UDim2.new(0, 8, 0, 30);
+            Size = UDim2.new(0, 220, 0, 220);
+            ZIndex = 170;
             Parent = PickerFrameInner;
         });
 
@@ -503,42 +570,42 @@ do
             BorderColor3 = Library.OutlineColor;
             BorderMode = Enum.BorderMode.Inset;
             Size = UDim2.new(1, 0, 1, 0);
-            ZIndex = 18;
+            ZIndex = 180;
             Parent = SatVibMapOuter;
         });
 
         local SatVibMap = Library:Create('ImageLabel', {
             BorderSizePixel = 0;
             Size = UDim2.new(1, 0, 1, 0);
-            ZIndex = 18;
+            ZIndex = 180;
             Image = 'rbxassetid://4155801252';
             Parent = SatVibMapInner;
         });
 
         local CursorOuter = Library:Create('ImageLabel', {
             AnchorPoint = Vector2.new(0.5, 0.5);
-            Size = UDim2.new(0, 6, 0, 6);
+            Size = UDim2.new(0, 8, 0, 8);
             BackgroundTransparency = 1;
             Image = 'http://www.roblox.com/asset/?id=9619665977';
             ImageColor3 = Color3.new(0, 0, 0);
-            ZIndex = 19;
+            ZIndex = 190;
             Parent = SatVibMap;
         });
 
         local CursorInner = Library:Create('ImageLabel', {
-            Size = UDim2.new(0, CursorOuter.Size.X.Offset - 2, 0, CursorOuter.Size.Y.Offset - 2);
+            Size = UDim2.new(0, CursorOuter.Size.X.Offset - 3, 0, CursorOuter.Size.Y.Offset - 3);
             Position = UDim2.new(0, 1, 0, 1);
             BackgroundTransparency = 1;
             Image = 'http://www.roblox.com/asset/?id=9619665977';
-            ZIndex = 20;
+            ZIndex = 200;
             Parent = CursorOuter;
         })
 
         local HueSelectorOuter = Library:Create('Frame', {
             BorderColor3 = Color3.new(0, 0, 0);
-            Position = UDim2.new(0, 208, 0, 25);
-            Size = UDim2.new(0, 15, 0, 200);
-            ZIndex = 17;
+            Position = UDim2.new(0, 232, 0, 30);
+            Size = UDim2.new(0, 18, 0, 220);
+            ZIndex = 170;
             Parent = PickerFrameInner;
         });
 
@@ -546,7 +613,7 @@ do
             BackgroundColor3 = Color3.new(1, 1, 1);
             BorderSizePixel = 0;
             Size = UDim2.new(1, 0, 1, 0);
-            ZIndex = 18;
+            ZIndex = 180;
             Parent = HueSelectorOuter;
         });
 
@@ -554,16 +621,16 @@ do
             BackgroundColor3 = Color3.new(1, 1, 1);
             AnchorPoint = Vector2.new(0, 0.5);
             BorderColor3 = Color3.new(0, 0, 0);
-            Size = UDim2.new(1, 0, 0, 1);
-            ZIndex = 18;
+            Size = UDim2.new(1, 0, 0, 2);
+            ZIndex = 190;
             Parent = HueSelectorInner;
         });
 
         local HueBoxOuter = Library:Create('Frame', {
             BorderColor3 = Color3.new(0, 0, 0);
-            Position = UDim2.fromOffset(4, 228),
-            Size = UDim2.new(0.5, -6, 0, 20),
-            ZIndex = 18,
+            Position = UDim2.fromOffset(8, 262),
+            Size = UDim2.new(0.5, -6, 0, 22),
+            ZIndex = 180,
             Parent = PickerFrameInner;
         });
 
@@ -572,7 +639,7 @@ do
             BorderColor3 = Library.OutlineColor;
             BorderMode = Enum.BorderMode.Inset;
             Size = UDim2.new(1, 0, 1, 0);
-            ZIndex = 18,
+            ZIndex = 180,
             Parent = HueBoxOuter;
         });
 
@@ -587,25 +654,25 @@ do
 
         local HueBox = Library:Create('TextBox', {
             BackgroundTransparency = 1;
-            Position = UDim2.new(0, 5, 0, 0);
-            Size = UDim2.new(1, -5, 1, 0);
+            Position = UDim2.new(0, 8, 0, 0);
+            Size = UDim2.new(1, -8, 1, 0);
             Font = Library.Font;
-            PlaceholderColor3 = Color3.fromRGB(190, 190, 190);
+            PlaceholderColor3 = Color3.fromRGB(170, 170, 170);
             PlaceholderText = 'Hex color',
             Text = '#FFFFFF',
             TextColor3 = Library.FontColor;
             TextSize = 14;
             TextStrokeTransparency = 0;
             TextXAlignment = Enum.TextXAlignment.Left;
-            ZIndex = 20,
+            ZIndex = 200,
             Parent = HueBoxInner;
         });
 
         Library:ApplyTextStroke(HueBox);
 
         local RgbBoxBase = Library:Create(HueBoxOuter:Clone(), {
-            Position = UDim2.new(0.5, 2, 0, 228),
-            Size = UDim2.new(0.5, -6, 0, 20),
+            Position = UDim2.new(0.5, 10, 0, 262),
+            Size = UDim2.new(0.5, -18, 0, 22),
             Parent = PickerFrameInner
         });
 
@@ -620,9 +687,9 @@ do
         if Info.Transparency then 
             TransparencyBoxOuter = Library:Create('Frame', {
                 BorderColor3 = Color3.new(0, 0, 0);
-                Position = UDim2.fromOffset(4, 251);
-                Size = UDim2.new(1, -8, 0, 15);
-                ZIndex = 19;
+                Position = UDim2.fromOffset(8, 289);
+                Size = UDim2.new(1, -16, 0, 18);
+                ZIndex = 190;
                 Parent = PickerFrameInner;
             });
 
@@ -631,7 +698,7 @@ do
                 BorderColor3 = Library.OutlineColor;
                 BorderMode = Enum.BorderMode.Inset;
                 Size = UDim2.new(1, 0, 1, 0);
-                ZIndex = 19;
+                ZIndex = 190;
                 Parent = TransparencyBoxOuter;
             });
 
@@ -641,7 +708,7 @@ do
                 BackgroundTransparency = 1;
                 Size = UDim2.new(1, 0, 1, 0);
                 Image = 'http://www.roblox.com/asset/?id=12978095818';
-                ZIndex = 20;
+                ZIndex = 200;
                 Parent = TransparencyBoxInner;
             });
 
@@ -649,20 +716,20 @@ do
                 BackgroundColor3 = Color3.new(1, 1, 1);
                 AnchorPoint = Vector2.new(0.5, 0);
                 BorderColor3 = Color3.new(0, 0, 0);
-                Size = UDim2.new(0, 1, 1, 0);
-                ZIndex = 21;
+                Size = UDim2.new(0, 2, 1, 0);
+                ZIndex = 210;
                 Parent = TransparencyBoxInner;
             });
         end;
 
         local DisplayLabel = Library:CreateLabel({
-            Size = UDim2.new(1, 0, 0, 14);
-            Position = UDim2.fromOffset(5, 5);
+            Size = UDim2.new(1, 0, 0, 16);
+            Position = UDim2.fromOffset(12, 8);
             TextXAlignment = Enum.TextXAlignment.Left;
             TextSize = 14;
             Text = ColorPicker.Title,--Info.Default;
             TextWrapped = false;
-            ZIndex = 16;
+            ZIndex = 200;
             Parent = PickerFrameInner;
         });
 
@@ -672,7 +739,7 @@ do
             ContextMenu.Options = {}
             ContextMenu.Container = Library:Create('Frame', {
                 BorderColor3 = Color3.new(),
-                ZIndex = 14,
+                ZIndex = 140,
 
                 Visible = false,
                 Parent = ScreenGui
@@ -683,7 +750,7 @@ do
                 BorderColor3 = Library.OutlineColor;
                 BorderMode = Enum.BorderMode.Inset;
                 Size = UDim2.fromScale(1, 1);
-                ZIndex = 15;
+                ZIndex = 150;
                 Parent = ContextMenu.Container;
             });
 
@@ -696,19 +763,21 @@ do
 
             Library:Create('UIPadding', {
                 Name = 'Padding',
-                PaddingLeft = UDim.new(0, 4),
+                PaddingLeft = UDim.new(0, 8),
+                PaddingTop = UDim.new(0, 4),
+                PaddingBottom = UDim.new(0, 4),
                 Parent = ContextMenu.Inner,
             });
 
             local function updateMenuPosition()
                 ContextMenu.Container.Position = UDim2.fromOffset(
-                    (DisplayFrame.AbsolutePosition.X + DisplayFrame.AbsoluteSize.X) + 4,
+                    (DisplayFrame.AbsolutePosition.X + DisplayFrame.AbsoluteSize.X) + 8,
                     DisplayFrame.AbsolutePosition.Y + 1
                 )
             end
 
             local function updateMenuSize()
-                local menuWidth = 60
+                local menuWidth = 90
                 for i, label in next, ContextMenu.Inner:GetChildren() do
                     if label:IsA('TextLabel') then
                         menuWidth = math.max(menuWidth, label.TextBounds.X)
@@ -716,8 +785,8 @@ do
                 end
 
                 ContextMenu.Container.Size = UDim2.fromOffset(
-                    menuWidth + 8,
-                    ContextMenu.Inner.Layout.AbsoluteContentSize.Y + 4
+                    menuWidth + 18,
+                    ContextMenu.Inner.Layout.AbsoluteContentSize.Y + 8
                 )
             end
 
@@ -747,10 +816,10 @@ do
 
                 local Button = Library:CreateLabel({
                     Active = false;
-                    Size = UDim2.new(1, 0, 0, 15);
+                    Size = UDim2.new(1, 0, 0, 18);
                     TextSize = 13;
                     Text = Str;
-                    ZIndex = 16;
+                    ZIndex = 160;
                     Parent = self.Inner;
                     TextXAlignment = Enum.TextXAlignment.Left,
                 });
@@ -998,6 +1067,22 @@ do
 
         Options[Idx] = ColorPicker;
 
+        -- Expose Get and SetText for consistency across elements
+        function ColorPicker:Get()
+            return ColorPicker.Value;
+        end;
+
+        function ColorPicker:SetText(Text)
+            -- primary label for the option (the group's label)
+            if ToggleLabel and ToggleLabel:IsA('TextLabel') then
+                ToggleLabel.Text = Text;
+            end
+            -- also update popup title if present
+            if DisplayLabel then
+                DisplayLabel.Text = Text;
+            end
+        end;
+
         return self;
     end;
 
@@ -1027,7 +1112,7 @@ do
         local PickOuter = Library:Create('Frame', {
             BackgroundColor3 = Color3.new(0, 0, 0);
             BorderColor3 = Color3.new(0, 0, 0);
-            Size = UDim2.new(0, 28, 0, 15);
+            Size = UDim2.new(0, 34, 0, 18);
             ZIndex = 6;
             Parent = ToggleLabel;
         });
@@ -1057,15 +1142,15 @@ do
 
         local ModeSelectOuter = Library:Create('Frame', {
             BorderColor3 = Color3.new(0, 0, 0);
-            Position = UDim2.fromOffset(ToggleLabel.AbsolutePosition.X + ToggleLabel.AbsoluteSize.X + 4, ToggleLabel.AbsolutePosition.Y + 1);
-            Size = UDim2.new(0, 60, 0, 45 + 2);
+            Position = UDim2.fromOffset(ToggleLabel.AbsolutePosition.X + ToggleLabel.AbsoluteSize.X + 6, ToggleLabel.AbsolutePosition.Y + 1);
+            Size = UDim2.new(0, 80, 0, 55 + 2);
             Visible = false;
-            ZIndex = 14;
+            ZIndex = 140;
             Parent = ScreenGui;
         });
 
         ToggleLabel:GetPropertyChangedSignal('AbsolutePosition'):Connect(function()
-            ModeSelectOuter.Position = UDim2.fromOffset(ToggleLabel.AbsolutePosition.X + ToggleLabel.AbsoluteSize.X + 4, ToggleLabel.AbsolutePosition.Y + 1);
+            ModeSelectOuter.Position = UDim2.fromOffset(ToggleLabel.AbsolutePosition.X + ToggleLabel.AbsoluteSize.X + 6, ToggleLabel.AbsolutePosition.Y + 1);
         end);
 
         local ModeSelectInner = Library:Create('Frame', {
@@ -1073,7 +1158,7 @@ do
             BorderColor3 = Library.OutlineColor;
             BorderMode = Enum.BorderMode.Inset;
             Size = UDim2.new(1, 0, 1, 0);
-            ZIndex = 15;
+            ZIndex = 150;
             Parent = ModeSelectOuter;
         });
 
@@ -1105,10 +1190,10 @@ do
 
             local Label = Library:CreateLabel({
                 Active = false;
-                Size = UDim2.new(1, 0, 0, 15);
+                Size = UDim2.new(1, 0, 0, 16);
                 TextSize = 13;
                 Text = Mode;
-                ZIndex = 16;
+                ZIndex = 160;
                 Parent = ModeSelectInner;
             });
 
@@ -1172,7 +1257,7 @@ do
                 end;
             end;
 
-            Library.KeybindFrame.Size = UDim2.new(0, math.max(XSize + 10, 210), 0, YSize + 23)
+            Library.KeybindFrame.Size = UDim2.new(0, math.max(XSize + 10, 240), 0, YSize + 28)
         end;
 
         function KeyPicker:GetState()
@@ -1187,7 +1272,7 @@ do
 
                 if Key == 'MB1' or Key == 'MB2' then
                     return Key == 'MB1' and InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
-                        or Key == 'MB2' and InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2);
+                        or Key == 'MB2' and InputService:IsMouseButtonPressed(Enum.UserInputType.MouseInputType.MouseButton2);
                 else
                     return InputService:IsKeyDown(Enum.KeyCode[KeyPicker.Value]);
                 end;
@@ -1325,6 +1410,21 @@ do
 
         Options[Idx] = KeyPicker;
 
+        -- Expose Get and SetText
+        function KeyPicker:Get()
+            -- return currently assigned key
+            return KeyPicker.Value;
+        end;
+
+        function KeyPicker:SetText(Text)
+            if DisplayLabel then
+                DisplayLabel.Text = Text;
+            end
+            if ToggleLabel and ToggleLabel:IsA('TextLabel') then
+                ToggleLabel.Text = Text;
+            end
+        end;
+
         return self;
     end;
 
@@ -1358,7 +1458,7 @@ do
         local Container = Groupbox.Container;
 
         local TextLabel = Library:CreateLabel({
-            Size = UDim2.new(1, -4, 0, 15);
+            Size = UDim2.new(1, -8, 0, 18);
             TextSize = 14;
             Text = Text;
             TextWrapped = DoesWrap or false,
@@ -1369,10 +1469,10 @@ do
 
         if DoesWrap then
             local Y = select(2, Library:GetTextBounds(Text, Library.Font, 14, Vector2.new(TextLabel.AbsoluteSize.X, math.huge)))
-            TextLabel.Size = UDim2.new(1, -4, 0, Y)
+            TextLabel.Size = UDim2.new(1, -8, 0, Y)
         else
             Library:Create('UIListLayout', {
-                Padding = UDim.new(0, 4);
+                Padding = UDim.new(0, 8);
                 FillDirection = Enum.FillDirection.Horizontal;
                 HorizontalAlignment = Enum.HorizontalAlignment.Right;
                 SortOrder = Enum.SortOrder.LayoutOrder;
@@ -1388,17 +1488,21 @@ do
 
             if DoesWrap then
                 local Y = select(2, Library:GetTextBounds(Text, Library.Font, 14, Vector2.new(TextLabel.AbsoluteSize.X, math.huge)))
-                TextLabel.Size = UDim2.new(1, -4, 0, Y)
+                TextLabel.Size = UDim2.new(1, -8, 0, Y)
             end
 
             Groupbox:Resize();
+        end
+
+        function Label:Get()
+            return TextLabel.Text;
         end
 
         if (not DoesWrap) then
             setmetatable(Label, BaseAddons);
         end
 
-        Groupbox:AddBlank(5);
+        Groupbox:AddBlank(6);
         Groupbox:Resize();
 
         return Label;
@@ -1429,9 +1533,9 @@ do
 
         local function CreateBaseButton(Button)
             local Outer = Library:Create('Frame', {
-                BackgroundColor3 = Color3.new(0, 0, 0);
+                BackgroundColor3 = Color3.fromRGB(18,18,18);
                 BorderColor3 = Color3.new(0, 0, 0);
-                Size = UDim2.new(1, -4, 0, 20);
+                Size = UDim2.new(1, -8, 0, 28);
                 ZIndex = 5;
             });
 
@@ -1439,13 +1543,15 @@ do
                 BackgroundColor3 = Library.MainColor;
                 BorderColor3 = Library.OutlineColor;
                 BorderMode = Enum.BorderMode.Inset;
-                Size = UDim2.new(1, 0, 1, 0);
+                Size = UDim2.new(1, -2, 1, -2);
+                Position = UDim2.new(0, 1, 0, 1);
                 ZIndex = 6;
                 Parent = Outer;
             });
 
             local Label = Library:CreateLabel({
-                Size = UDim2.new(1, 0, 1, 0);
+                Size = UDim2.new(1, -12, 1, 0);
+                Position = UDim2.fromOffset(8, 0),
                 TextSize = 14;
                 Text = Button.Text;
                 ZIndex = 6;
@@ -1558,12 +1664,12 @@ do
 
             ProcessButtonParams('SubButton', SubButton, ...)
 
-            self.Outer.Size = UDim2.new(0.5, -2, 0, 20)
+            self.Outer.Size = UDim2.new(0.5, -4, 0, 28)
 
             SubButton.Outer, SubButton.Inner, SubButton.Label = CreateBaseButton(SubButton)
 
-            SubButton.Outer.Position = UDim2.new(1, 3, 0, 0)
-            SubButton.Outer.Size = UDim2.fromOffset(self.Outer.AbsoluteSize.X - 2, self.Outer.AbsoluteSize.Y)
+            SubButton.Outer.Position = UDim2.new(1, 6, 0, 0)
+            SubButton.Outer.Size = UDim2.fromOffset(self.Outer.AbsoluteSize.X - 6, self.Outer.AbsoluteSize.Y)
             SubButton.Outer.Parent = self.Outer
 
             function SubButton:AddTooltip(tooltip)
@@ -1578,6 +1684,17 @@ do
             end
 
             InitEvents(SubButton)
+            -- add Get and SetText for subbutton
+            function SubButton:Get()
+                return SubButton.Label and SubButton.Label.Text;
+            end
+
+            function SubButton:SetText(Text)
+                if SubButton.Label then
+                    SubButton.Label.Text = Text;
+                end
+            end
+
             return SubButton
         end
 
@@ -1585,8 +1702,19 @@ do
             Button:AddTooltip(Button.Tooltip)
         end
 
-        Groupbox:AddBlank(5);
+        Groupbox:AddBlank(6);
         Groupbox:Resize();
+
+        -- add Get and SetText to button
+        function Button:Get()
+            return Button.Label and Button.Label.Text;
+        end
+
+        function Button:SetText(Text)
+            if Button.Label then
+                Button.Label.Text = Text;
+            end
+        end
 
         return Button;
     end;
@@ -1599,11 +1727,11 @@ do
             Type = 'Divider',
         }
 
-        Groupbox:AddBlank(2);
+        Groupbox:AddBlank(4);
         local DividerOuter = Library:Create('Frame', {
             BackgroundColor3 = Color3.new(0, 0, 0);
             BorderColor3 = Color3.new(0, 0, 0);
-            Size = UDim2.new(1, -4, 0, 5);
+            Size = UDim2.new(1, -8, 0, 6);
             ZIndex = 5;
             Parent = Container;
         });
@@ -1612,7 +1740,8 @@ do
             BackgroundColor3 = Library.MainColor;
             BorderColor3 = Library.OutlineColor;
             BorderMode = Enum.BorderMode.Inset;
-            Size = UDim2.new(1, 0, 1, 0);
+            Size = UDim2.new(1, -2, 1, -2);
+            Position = UDim2.new(0, 1, 0, 1);
             ZIndex = 6;
             Parent = DividerOuter;
         });
@@ -1626,7 +1755,7 @@ do
             BorderColor3 = 'OutlineColor';
         });
 
-        Groupbox:AddBlank(9);
+        Groupbox:AddBlank(8);
         Groupbox:Resize();
     end
 
@@ -1645,7 +1774,7 @@ do
         local Container = Groupbox.Container;
 
         local InputLabel = Library:CreateLabel({
-            Size = UDim2.new(1, 0, 0, 15);
+            Size = UDim2.new(1, 0, 0, 16);
             TextSize = 14;
             Text = Info.Text;
             TextXAlignment = Enum.TextXAlignment.Left;
@@ -1653,12 +1782,12 @@ do
             Parent = Container;
         });
 
-        Groupbox:AddBlank(1);
+        Groupbox:AddBlank(2);
 
         local TextBoxOuter = Library:Create('Frame', {
             BackgroundColor3 = Color3.new(0, 0, 0);
             BorderColor3 = Color3.new(0, 0, 0);
-            Size = UDim2.new(1, -4, 0, 20);
+            Size = UDim2.new(1, -8, 0, 26);
             ZIndex = 5;
             Parent = Container;
         });
@@ -1667,7 +1796,8 @@ do
             BackgroundColor3 = Library.MainColor;
             BorderColor3 = Library.OutlineColor;
             BorderMode = Enum.BorderMode.Inset;
-            Size = UDim2.new(1, 0, 1, 0);
+            Size = UDim2.new(1, -2, 1, -2);
+            Position = UDim2.new(0, 1, 0, 1);
             ZIndex = 6;
             Parent = TextBoxOuter;
         });
@@ -1699,8 +1829,8 @@ do
             BackgroundTransparency = 1;
             ClipsDescendants = true;
 
-            Position = UDim2.new(0, 5, 0, 0);
-            Size = UDim2.new(1, -5, 1, 0);
+            Position = UDim2.new(0, 8, 0, 0);
+            Size = UDim2.new(1, -16, 1, 0);
 
             ZIndex = 7;
             Parent = TextBoxInner;
@@ -1713,7 +1843,7 @@ do
             Size = UDim2.fromScale(5, 1),
 
             Font = Library.Font;
-            PlaceholderColor3 = Color3.fromRGB(190, 190, 190);
+            PlaceholderColor3 = Color3.fromRGB(170, 170, 170);
             PlaceholderText = Info.Placeholder or '';
 
             Text = Info.Default or '';
@@ -1764,7 +1894,7 @@ do
         -- thank you nicemike40 :)
 
         local function Update()
-            local PADDING = 2
+            local PADDING = 4
             local reveal = Container.AbsoluteSize.X
 
             if not Box:IsFocused() or Box.TextBounds.X <= reveal - 2 * PADDING then
@@ -1807,7 +1937,18 @@ do
             Func(Textbox.Value);
         end;
 
-        Groupbox:AddBlank(5);
+        -- Expose Get and SetText
+        function Textbox:Get()
+            return Textbox.Value;
+        end;
+
+        function Textbox:SetText(Text)
+            if InputLabel then
+                InputLabel.Text = Text;
+            end
+        end;
+
+        Groupbox:AddBlank(6);
         Groupbox:Resize();
 
         Options[Idx] = Textbox;
@@ -1833,7 +1974,7 @@ do
         local ToggleOuter = Library:Create('Frame', {
             BackgroundColor3 = Color3.new(0, 0, 0);
             BorderColor3 = Color3.new(0, 0, 0);
-            Size = UDim2.new(0, 13, 0, 13);
+            Size = UDim2.new(0, 18, 0, 18);
             ZIndex = 5;
             Parent = Container;
         });
@@ -1857,8 +1998,8 @@ do
         });
 
         local ToggleLabel = Library:CreateLabel({
-            Size = UDim2.new(0, 216, 1, 0);
-            Position = UDim2.new(1, 6, 0, 0);
+            Size = UDim2.new(0, 260, 1, 0);
+            Position = UDim2.new(1, 10, 0, 0);
             TextSize = 14;
             Text = Info.Text;
             TextXAlignment = Enum.TextXAlignment.Left;
@@ -1867,7 +2008,7 @@ do
         });
 
         Library:Create('UIListLayout', {
-            Padding = UDim.new(0, 4);
+            Padding = UDim.new(0, 6);
             FillDirection = Enum.FillDirection.Horizontal;
             HorizontalAlignment = Enum.HorizontalAlignment.Right;
             SortOrder = Enum.SortOrder.LayoutOrder;
@@ -1876,7 +2017,7 @@ do
 
         local ToggleRegion = Library:Create('Frame', {
             BackgroundTransparency = 1;
-            Size = UDim2.new(0, 170, 1, 0);
+            Size = UDim2.new(0, 240, 1, 0);
             ZIndex = 8;
             Parent = ToggleOuter;
         });
@@ -1894,9 +2035,19 @@ do
             Library:AddToolTip(Info.Tooltip, ToggleRegion)
         end
 
+        -- Make toggle inner rounded and animate color changes smoothly
+        pcall(function() ToggleInner:FindFirstChild('__modern_corner') end)
+        -- Display function now tweens background/border
         function Toggle:Display()
-            ToggleInner.BackgroundColor3 = Toggle.Value and Library.AccentColor or Library.MainColor;
-            ToggleInner.BorderColor3 = Toggle.Value and Library.AccentColorDark or Library.OutlineColor;
+            local bg = Toggle.Value and Library.AccentColor or Library.MainColor
+            local border = Toggle.Value and Library.AccentColorDark or Library.OutlineColor
+
+            pcall(function()
+                TweenService:Create(ToggleInner, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                    BackgroundColor3 = bg,
+                    BorderColor3 = border
+                }):Play()
+            end)
 
             Library.RegistryMap[ToggleInner].Properties.BackgroundColor3 = Toggle.Value and 'AccentColor' or 'MainColor';
             Library.RegistryMap[ToggleInner].Properties.BorderColor3 = Toggle.Value and 'AccentColorDark' or 'OutlineColor';
@@ -1908,7 +2059,7 @@ do
         end;
 
         function Toggle:Get()
-          return Toggle.Value or "Error [1]"
+          return Toggle.Value
         end;
 
         function Toggle:SetValue(Bool)
@@ -1929,6 +2080,13 @@ do
             Library:UpdateDependencyBoxes();
         end;
 
+        -- New SetText for toggles (change the label shown beside the toggle)
+        function Toggle:SetText(Text)
+            if ToggleLabel then
+                ToggleLabel.Text = Text;
+            end
+        end
+
         ToggleRegion.InputBegan:Connect(function(Input)
             if Input.UserInputType == Enum.UserInputType.MouseButton1 and not Library:MouseIsOverOpenedFrame() then
                 Toggle:SetValue(not Toggle.Value) -- Why was it not like this from the start?
@@ -1943,7 +2101,7 @@ do
         end
 
         Toggle:Display();
-        Groupbox:AddBlank(Info.BlankSize or 5 + 2);
+        Groupbox:AddBlank(Info.BlankSize or 6 + 2);
         Groupbox:Resize();
 
         Toggle.TextLabel = ToggleLabel;
@@ -1979,7 +2137,7 @@ do
 
         if not Info.Compact then
            local Sliderlabel = Library:CreateLabel({
-                Size = UDim2.new(1, 0, 0, 10);
+                Size = UDim2.new(1, 0, 0, 12);
                 TextSize = 14;
                 Text = Info.Text;
                 TextXAlignment = Enum.TextXAlignment.Left;
@@ -1988,13 +2146,15 @@ do
                 Parent = Container;
             });
 
-            Groupbox:AddBlank(3);
+            Groupbox:AddBlank(4);
+            -- capture for SetText
+            Slider.Label = Sliderlabel
         end
 
         local SliderOuter = Library:Create('Frame', {
             BackgroundColor3 = Color3.new(0, 0, 0);
             BorderColor3 = Color3.new(0, 0, 0);
-            Size = UDim2.new(1, -4, 0, 13);
+            Size = UDim2.new(1, -8, 0, 18);
             ZIndex = 5;
             Parent = Container;
         });
@@ -2007,7 +2167,8 @@ do
             BackgroundColor3 = Library.MainColor;
             BorderColor3 = Library.OutlineColor;
             BorderMode = Enum.BorderMode.Inset;
-            Size = UDim2.new(1, 0, 1, 0);
+            Size = UDim2.new(1, -2, 1, -2);
+            Position = UDim2.new(0, 1, 0, 1);
             ZIndex = 6;
             Parent = SliderOuter;
         });
@@ -2044,7 +2205,8 @@ do
         });
 
         local DisplayLabel = Library:CreateLabel({
-            Size = UDim2.new(1, 0, 1, 0);
+            Size = UDim2.new(1, -12, 1, 0);
+            Position = UDim2.new(0, 8, 0, 0);
             TextSize = 14;
             Text = 'Infinite';
             ZIndex = 9;
@@ -2117,7 +2279,11 @@ do
         end;
 
         function Slider:SetText(string)
-           return Sliderlabel.Text = string
+           if Slider.Label then
+               return Slider.Label.Text = string
+           else
+               return Sliderlabel and (Sliderlabel.Text = string)
+           end
         end;
 
         SliderInner.InputBegan:Connect(function(Input)
@@ -2149,10 +2315,23 @@ do
         end);
 
         Slider:Display();
-        Groupbox:AddBlank(Info.BlankSize or 6);
+        Groupbox:AddBlank(Info.BlankSize or 8);
         Groupbox:Resize();
 
         Options[Idx] = Slider;
+
+        -- Expose Get and SetText
+        function Slider:Get()
+            return Slider.Value;
+        end;
+
+        function Slider:SetText(Text)
+            if Slider.Label then
+                Slider.Label.Text = Text;
+            else
+                DisplayLabel.Text = Text;
+            end
+        end;
 
         return Slider;
     end;
@@ -2189,7 +2368,7 @@ do
 
         if not Info.Compact then
             local DropdownLabel = Library:CreateLabel({
-                Size = UDim2.new(1, 0, 0, 10);
+                Size = UDim2.new(1, 0, 0, 12);
                 TextSize = 14;
                 Text = Info.Text;
                 TextXAlignment = Enum.TextXAlignment.Left;
@@ -2198,7 +2377,8 @@ do
                 Parent = Container;
             });
 
-            Groupbox:AddBlank(3);
+            Groupbox:AddBlank(4);
+            Dropdown.Label = DropdownLabel
         end
 
         for _, Element in next, Container:GetChildren() do
@@ -2210,7 +2390,7 @@ do
         local DropdownOuter = Library:Create('Frame', {
             BackgroundColor3 = Color3.new(0, 0, 0);
             BorderColor3 = Color3.new(0, 0, 0);
-            Size = UDim2.new(1, -4, 0, 20);
+            Size = UDim2.new(1, -8, 0, 26);
             ZIndex = 5;
             Parent = Container;
         });
@@ -2223,7 +2403,8 @@ do
             BackgroundColor3 = Library.MainColor;
             BorderColor3 = Library.OutlineColor;
             BorderMode = Enum.BorderMode.Inset;
-            Size = UDim2.new(1, 0, 1, 0);
+            Size = UDim2.new(1, -2, 1, -2);
+            Position = UDim2.new(0, 1, 0, 1);
             ZIndex = 6;
             Parent = DropdownOuter;
         });
@@ -2245,7 +2426,7 @@ do
         local DropdownArrow = Library:Create('ImageLabel', {
             AnchorPoint = Vector2.new(0, 0.5);
             BackgroundTransparency = 1;
-            Position = UDim2.new(1, -16, 0.5, 0);
+            Position = UDim2.new(1, -20, 0.5, 0);
             Size = UDim2.new(0, 12, 0, 12);
             Image = 'http://www.roblox.com/asset/?id=6282522798';
             ZIndex = 8;
@@ -2253,8 +2434,8 @@ do
         });
 
         local ItemList = Library:CreateLabel({
-            Position = UDim2.new(0, 5, 0, 0);
-            Size = UDim2.new(1, -5, 1, 0);
+            Position = UDim2.new(0, 8, 0, 0);
+            Size = UDim2.new(1, -32, 1, 0);
             TextSize = 14;
             Text = '--';
             TextXAlignment = Enum.TextXAlignment.Left;
@@ -2277,17 +2458,17 @@ do
         local ListOuter = Library:Create('Frame', {
             BackgroundColor3 = Color3.new(0, 0, 0);
             BorderColor3 = Color3.new(0, 0, 0);
-            ZIndex = 20;
+            ZIndex = 200;
             Visible = false;
             Parent = ScreenGui;
         });
 
         local function RecalculateListPosition()
-            ListOuter.Position = UDim2.fromOffset(DropdownOuter.AbsolutePosition.X, DropdownOuter.AbsolutePosition.Y + DropdownOuter.Size.Y.Offset + 1);
+            ListOuter.Position = UDim2.fromOffset(DropdownOuter.AbsolutePosition.X, DropdownOuter.AbsolutePosition.Y + DropdownOuter.Size.Y.Offset + 8);
         end;
 
         local function RecalculateListSize(YSize)
-            ListOuter.Size = UDim2.fromOffset(DropdownOuter.AbsoluteSize.X, YSize or (MAX_DROPDOWN_ITEMS * 20 + 2))
+            ListOuter.Size = UDim2.fromOffset(DropdownOuter.AbsoluteSize.X, YSize or (MAX_DROPDOWN_ITEMS * 24 + 8))
         end;
 
         RecalculateListPosition();
@@ -2301,7 +2482,7 @@ do
             BorderMode = Enum.BorderMode.Inset;
             BorderSizePixel = 0;
             Size = UDim2.new(1, 0, 1, 0);
-            ZIndex = 21;
+            ZIndex = 210;
             Parent = ListOuter;
         });
 
@@ -2315,13 +2496,13 @@ do
             BorderSizePixel = 0;
             CanvasSize = UDim2.new(0, 0, 0, 0);
             Size = UDim2.new(1, 0, 1, 0);
-            ZIndex = 21;
+            ZIndex = 210;
             Parent = ListInner;
 
             TopImage = 'rbxasset://textures/ui/Scroll/scroll-middle.png',
             BottomImage = 'rbxasset://textures/ui/Scroll/scroll-middle.png',
 
-            ScrollBarThickness = 3,
+            ScrollBarThickness = 6,
             ScrollBarImageColor3 = Library.AccentColor,
         });
 
@@ -2390,8 +2571,8 @@ do
                     BackgroundColor3 = Library.MainColor;
                     BorderColor3 = Library.OutlineColor;
                     BorderMode = Enum.BorderMode.Middle;
-                    Size = UDim2.new(1, -1, 0, 20);
-                    ZIndex = 23;
+                    Size = UDim2.new(1, -8, 0, 22);
+                    ZIndex = 230;
                     Active = true,
                     Parent = Scrolling;
                 });
@@ -2403,18 +2584,18 @@ do
 
                 local ButtonLabel = Library:CreateLabel({
                     Active = false;
-                    Size = UDim2.new(1, -6, 1, 0);
-                    Position = UDim2.new(0, 6, 0, 0);
+                    Size = UDim2.new(1, -12, 1, 0);
+                    Position = UDim2.new(0, 8, 0, 0);
                     TextSize = 14;
                     Text = Value;
                     TextXAlignment = Enum.TextXAlignment.Left;
-                    ZIndex = 25;
+                    ZIndex = 250;
                     Parent = Button;
                 });
 
                 Library:OnHighlight(Button, Button,
-                    { BorderColor3 = 'AccentColor', ZIndex = 24 },
-                    { BorderColor3 = 'OutlineColor', ZIndex = 23 }
+                    { BorderColor3 = 'AccentColor', ZIndex = 240 },
+                    { BorderColor3 = 'OutlineColor', ZIndex = 230 }
                 );
 
                 local Selected;
@@ -2481,9 +2662,9 @@ do
                 Buttons[Button] = Table;
             end;
 
-            Scrolling.CanvasSize = UDim2.fromOffset(0, (Count * 20) + 1);
+            Scrolling.CanvasSize = UDim2.fromOffset(0, (Count * 24) + 8);
 
-            local Y = math.clamp(Count * 20, 0, MAX_DROPDOWN_ITEMS * 20) + 1;
+            local Y = math.clamp(Count * 24, 0, MAX_DROPDOWN_ITEMS * 24) + 8;
             RecalculateListSize(Y);
         end;
 
@@ -2596,10 +2777,28 @@ do
             Dropdown:Display();
         end
 
-        Groupbox:AddBlank(Info.BlankSize or 5);
+        Groupbox:AddBlank(Info.BlankSize or 8);
         Groupbox:Resize();
 
         Options[Idx] = Dropdown;
+
+        -- Expose Get and SetText
+        function Dropdown:Get()
+            if Dropdown.Multi then
+                local t = {}
+                for k in next, Dropdown.Value do
+                    table.insert(t, k)
+                end
+                return t
+            end
+            return Dropdown.Value
+        end
+
+        function Dropdown:SetText(Text)
+            if Dropdown.Label then
+                Dropdown.Label.Text = Text
+            end
+        end
 
         return Dropdown;
     end;
@@ -2691,14 +2890,14 @@ end;
 do
     Library.NotificationArea = Library:Create('Frame', {
         BackgroundTransparency = 1;
-        Position = UDim2.new(0, 0, 0, 40);
-        Size = UDim2.new(0, 300, 0, 200);
+        Position = UDim2.new(0, 12, 0, 40);
+        Size = UDim2.new(0, 320, 0, 220);
         ZIndex = 100;
         Parent = ScreenGui;
     });
 
     Library:Create('UIListLayout', {
-        Padding = UDim.new(0, 4);
+        Padding = UDim.new(0, 8);
         FillDirection = Enum.FillDirection.Vertical;
         SortOrder = Enum.SortOrder.LayoutOrder;
         Parent = Library.NotificationArea;
@@ -2706,9 +2905,9 @@ do
 
     local WatermarkOuter = Library:Create('Frame', {
         BorderColor3 = Color3.new(0, 0, 0);
-        Position = UDim2.new(0, 100, 0, -25);
-        Size = UDim2.new(0, 213, 0, 20);
-        ZIndex = 200;
+        Position = UDim2.new(0, 120, 0, -28);
+        Size = UDim2.new(0, 260, 0, 28);
+        ZIndex = 300;
         Visible = false;
         Parent = ScreenGui;
     });
@@ -2718,7 +2917,7 @@ do
         BorderColor3 = Library.AccentColor;
         BorderMode = Enum.BorderMode.Inset;
         Size = UDim2.new(1, 0, 1, 0);
-        ZIndex = 201;
+        ZIndex = 310;
         Parent = WatermarkOuter;
     });
 
@@ -2731,7 +2930,7 @@ do
         BorderSizePixel = 0;
         Position = UDim2.new(0, 1, 0, 1);
         Size = UDim2.new(1, -2, 1, -2);
-        ZIndex = 202;
+        ZIndex = 320;
         Parent = WatermarkInner;
     });
 
@@ -2754,11 +2953,11 @@ do
     });
 
     local WatermarkLabel = Library:CreateLabel({
-        Position = UDim2.new(0, 5, 0, 0);
-        Size = UDim2.new(1, -4, 1, 0);
+        Position = UDim2.new(0, 12, 0, 0);
+        Size = UDim2.new(1, -20, 1, 0);
         TextSize = 14;
         TextXAlignment = Enum.TextXAlignment.Left;
-        ZIndex = 203;
+        ZIndex = 330;
         Parent = InnerFrame;
     });
 
@@ -2771,10 +2970,10 @@ do
     local KeybindOuter = Library:Create('Frame', {
         AnchorPoint = Vector2.new(0, 0.5);
         BorderColor3 = Color3.new(0, 0, 0);
-        Position = UDim2.new(0, 10, 0.5, 0);
-        Size = UDim2.new(0, 210, 0, 20);
+        Position = UDim2.new(0, 12, 0.5, 0);
+        Size = UDim2.new(0, 260, 0, 26);
         Visible = false;
-        ZIndex = 100;
+        ZIndex = 200;
         Parent = ScreenGui;
     });
 
@@ -2783,7 +2982,7 @@ do
         BorderColor3 = Library.OutlineColor;
         BorderMode = Enum.BorderMode.Inset;
         Size = UDim2.new(1, 0, 1, 0);
-        ZIndex = 101;
+        ZIndex = 210;
         Parent = KeybindOuter;
     });
 
@@ -2795,8 +2994,8 @@ do
     local ColorFrame = Library:Create('Frame', {
         BackgroundColor3 = Library.AccentColor;
         BorderSizePixel = 0;
-        Size = UDim2.new(1, 0, 0, 2);
-        ZIndex = 102;
+        Size = UDim2.new(1, 0, 0, 3);
+        ZIndex = 220;
         Parent = KeybindInner;
     });
 
@@ -2805,19 +3004,19 @@ do
     }, true);
 
     local KeybindLabel = Library:CreateLabel({
-        Size = UDim2.new(1, 0, 0, 20);
-        Position = UDim2.fromOffset(5, 2),
+        Size = UDim2.new(1, 0, 0, 22);
+        Position = UDim2.fromOffset(12, 3),
         TextXAlignment = Enum.TextXAlignment.Left,
 
         Text = 'Keybinds';
-        ZIndex = 104;
+        ZIndex = 240;
         Parent = KeybindInner;
     });
 
     local KeybindContainer = Library:Create('Frame', {
         BackgroundTransparency = 1;
-        Size = UDim2.new(1, 0, 1, -20);
-        Position = UDim2.new(0, 0, 0, 20);
+        Size = UDim2.new(1, 0, 1, -26);
+        Position = UDim2.new(0, 0, 0, 26);
         ZIndex = 1;
         Parent = KeybindInner;
     });
@@ -2829,7 +3028,7 @@ do
     });
 
     Library:Create('UIPadding', {
-        PaddingLeft = UDim.new(0, 5),
+        PaddingLeft = UDim.new(0, 8),
         Parent = KeybindContainer,
     })
 
@@ -2844,7 +3043,7 @@ end;
 
 function Library:SetWatermark(Text)
     local X, Y = Library:GetTextBounds(Text, Library.Font, 14);
-    Library.Watermark.Size = UDim2.new(0, X + 15, 0, (Y * 1.5) + 3);
+    Library.Watermark.Size = UDim2.new(0, X + 24, 0, (Y * 1.6) + 8);
     Library:SetWatermarkVisibility(true)
 
     Library.WatermarkText.Text = Text;
@@ -2853,14 +3052,14 @@ end;
 function Library:Notify(Text, Time)
     local XSize, YSize = Library:GetTextBounds(Text, Library.Font, 14);
 
-    YSize = YSize + 7
+    YSize = YSize + 11
 
     local NotifyOuter = Library:Create('Frame', {
         BorderColor3 = Color3.new(0, 0, 0);
-        Position = UDim2.new(0, 100, 0, 10);
+        Position = UDim2.new(0, 120, 0, 12);
         Size = UDim2.new(0, 0, 0, YSize);
         ClipsDescendants = true;
-        ZIndex = 100;
+        ZIndex = 400;
         Parent = Library.NotificationArea;
     });
 
@@ -2869,7 +3068,7 @@ function Library:Notify(Text, Time)
         BorderColor3 = Library.OutlineColor;
         BorderMode = Enum.BorderMode.Inset;
         Size = UDim2.new(1, 0, 1, 0);
-        ZIndex = 101;
+        ZIndex = 410;
         Parent = NotifyOuter;
     });
 
@@ -2883,7 +3082,7 @@ function Library:Notify(Text, Time)
         BorderSizePixel = 0;
         Position = UDim2.new(0, 1, 0, 1);
         Size = UDim2.new(1, -2, 1, -2);
-        ZIndex = 102;
+        ZIndex = 420;
         Parent = NotifyInner;
     });
 
@@ -2906,12 +3105,12 @@ function Library:Notify(Text, Time)
     });
 
     local NotifyLabel = Library:CreateLabel({
-        Position = UDim2.new(0, 4, 0, 0);
-        Size = UDim2.new(1, -4, 1, 0);
+        Position = UDim2.new(0, 12, 0, 0);
+        Size = UDim2.new(1, -24, 1, 0);
         Text = Text;
         TextXAlignment = Enum.TextXAlignment.Left;
         TextSize = 14;
-        ZIndex = 103;
+        ZIndex = 430;
         Parent = InnerFrame;
     });
 
@@ -2919,8 +3118,8 @@ function Library:Notify(Text, Time)
         BackgroundColor3 = Library.AccentColor;
         BorderSizePixel = 0;
         Position = UDim2.new(0, -1, 0, -1);
-        Size = UDim2.new(0, 3, 1, 2);
-        ZIndex = 104;
+        Size = UDim2.new(0, 6, 1, 2);
+        ZIndex = 440;
         Parent = NotifyOuter;
     });
 
@@ -2928,12 +3127,12 @@ function Library:Notify(Text, Time)
         BackgroundColor3 = 'AccentColor';
     }, true);
 
-    pcall(NotifyOuter.TweenSize, NotifyOuter, UDim2.new(0, XSize + 8 + 4, 0, YSize), 'Out', 'Quad', 0.4, true);
+    pcall(NotifyOuter.TweenSize, NotifyOuter, UDim2.new(0, XSize + 20 + 12, 0, YSize), 'Out', 'Quad', 0.36, true);
 
     task.spawn(function()
         wait(Time or 5);
 
-        pcall(NotifyOuter.TweenSize, NotifyOuter, UDim2.new(0, 0, 0, YSize), 'Out', 'Quad', 0.4, true);
+        pcall(NotifyOuter.TweenSize, NotifyOuter, UDim2.new(0, 0, 0, YSize), 'Out', 'Quad', 0.36, true);
 
         wait(0.4);
 
@@ -2953,11 +3152,11 @@ function Library:CreateWindow(...)
     end
 
     if type(Config.Title) ~= 'string' then Config.Title = 'No title' end
-    if type(Config.TabPadding) ~= 'number' then Config.TabPadding = 0 end
-    if type(Config.MenuFadeTime) ~= 'number' then Config.MenuFadeTime = 0.2 end
+    if type(Config.TabPadding) ~= 'number' then Config.TabPadding = 6 end
+    if type(Config.MenuFadeTime) ~= 'number' then Config.MenuFadeTime = 0.22 end
 
     if typeof(Config.Position) ~= 'UDim2' then Config.Position = UDim2.fromOffset(175, 50) end
-    if typeof(Config.Size) ~= 'UDim2' then Config.Size = UDim2.fromOffset(550, 600) end
+    if typeof(Config.Size) ~= 'UDim2' then Config.Size = UDim2.fromOffset(640, 520) end
 
     if Config.Center then
         Config.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -2975,42 +3174,43 @@ function Library:CreateWindow(...)
         Position = Config.Position,
         Size = Config.Size,
         Visible = false;
-        ZIndex = 1;
+        ZIndex = 100;
         Parent = ScreenGui;
     });
 
-    Library:MakeDraggable(Outer, 25);
+    Library:MakeDraggable(Outer, 28);
 
     local Inner = Library:Create('Frame', {
         BackgroundColor3 = Library.MainColor;
-        BorderColor3 = Library.AccentColor;
+        BorderColor3 = Library.OutlineColor;
         BorderMode = Enum.BorderMode.Inset;
         Position = UDim2.new(0, 1, 0, 1);
         Size = UDim2.new(1, -2, 1, -2);
-        ZIndex = 1;
+        ZIndex = 110;
         Parent = Outer;
     });
 
     Library:AddToRegistry(Inner, {
         BackgroundColor3 = 'MainColor';
-        BorderColor3 = 'AccentColor';
+        BorderColor3 = 'OutlineColor';
     });
 
     local WindowLabel = Library:CreateLabel({
-        Position = UDim2.new(0, 7, 0, 0);
-        Size = UDim2.new(0, 0, 0, 25);
+        Position = UDim2.new(0, 14, 0, 10);
+        Size = UDim2.new(0, 0, 0, 28);
         Text = Config.Title or '';
         TextXAlignment = Enum.TextXAlignment.Left;
-        ZIndex = 1;
+        TextSize = 18;
+        ZIndex = 120;
         Parent = Inner;
     });
 
     local MainSectionOuter = Library:Create('Frame', {
         BackgroundColor3 = Library.BackgroundColor;
         BorderColor3 = Library.OutlineColor;
-        Position = UDim2.new(0, 8, 0, 25);
-        Size = UDim2.new(1, -16, 1, -33);
-        ZIndex = 1;
+        Position = UDim2.new(0, 12, 0, 48);
+        Size = UDim2.new(1, -24, 1, -60);
+        ZIndex = 120;
         Parent = Inner;
     });
 
@@ -3025,7 +3225,7 @@ function Library:CreateWindow(...)
         BorderMode = Enum.BorderMode.Inset;
         Position = UDim2.new(0, 0, 0, 0);
         Size = UDim2.new(1, 0, 1, 0);
-        ZIndex = 1;
+        ZIndex = 120;
         Parent = MainSectionOuter;
     });
 
@@ -3035,9 +3235,9 @@ function Library:CreateWindow(...)
 
     local TabArea = Library:Create('Frame', {
         BackgroundTransparency = 1;
-        Position = UDim2.new(0, 8, 0, 8);
-        Size = UDim2.new(1, -16, 0, 21);
-        ZIndex = 1;
+        Position = UDim2.new(0, 12, 0, 12);
+        Size = UDim2.new(1, -24, 0, 36);
+        ZIndex = 120;
         Parent = MainSectionInner;
     });
 
@@ -3051,9 +3251,9 @@ function Library:CreateWindow(...)
     local TabContainer = Library:Create('Frame', {
         BackgroundColor3 = Library.MainColor;
         BorderColor3 = Library.OutlineColor;
-        Position = UDim2.new(0, 8, 0, 30);
-        Size = UDim2.new(1, -16, 1, -38);
-        ZIndex = 2;
+        Position = UDim2.new(0, 12, 0, 56);
+        Size = UDim2.new(1, -24, 1, -72);
+        ZIndex = 130;
         Parent = MainSectionInner;
     });
     
@@ -3078,8 +3278,8 @@ function Library:CreateWindow(...)
         local TabButton = Library:Create('Frame', {
             BackgroundColor3 = Library.BackgroundColor;
             BorderColor3 = Library.OutlineColor;
-            Size = UDim2.new(0, TabButtonWidth + 8 + 4, 1, 0);
-            ZIndex = 1;
+            Size = UDim2.new(0, TabButtonWidth + 18 + 8, 1, 0);
+            ZIndex = 130;
             Parent = TabArea;
         });
 
@@ -3090,9 +3290,10 @@ function Library:CreateWindow(...)
 
         local TabButtonLabel = Library:CreateLabel({
             Position = UDim2.new(0, 0, 0, 0);
-            Size = UDim2.new(1, 0, 1, -1);
+            Size = UDim2.new(1, 0, 1, -2);
             Text = Name;
-            ZIndex = 1;
+            TextSize = 15;
+            ZIndex = 130;
             Parent = TabButton;
         });
 
@@ -3100,9 +3301,9 @@ function Library:CreateWindow(...)
             BackgroundColor3 = Library.MainColor;
             BorderSizePixel = 0;
             Position = UDim2.new(0, 0, 1, 0);
-            Size = UDim2.new(1, 0, 0, 1);
+            Size = UDim2.new(1, 0, 0, 2);
             BackgroundTransparency = 1;
-            ZIndex = 3;
+            ZIndex = 140;
             Parent = TabButton;
         });
 
@@ -3116,38 +3317,40 @@ function Library:CreateWindow(...)
             Position = UDim2.new(0, 0, 0, 0);
             Size = UDim2.new(1, 0, 1, 0);
             Visible = false;
-            ZIndex = 2;
+            ZIndex = 130;
             Parent = TabContainer;
         });
 
         local LeftSide = Library:Create('ScrollingFrame', {
             BackgroundTransparency = 1;
             BorderSizePixel = 0;
-            Position = UDim2.new(0, 8 - 1, 0, 8 - 1);
-            Size = UDim2.new(0.5, -12 + 2, 0, 507 + 2);
+            Position = UDim2.new(0, 12, 0, 12);
+            Size = UDim2.new(0.5, -18, 1, -24);
             CanvasSize = UDim2.new(0, 0, 0, 0);
             BottomImage = '';
             TopImage = '';
-            ScrollBarThickness = 0;
-            ZIndex = 2;
+            ScrollBarThickness = 10;
+            ScrollBarImageColor3 = Library.AccentColor;
+            ZIndex = 130;
             Parent = TabFrame;
         });
 
         local RightSide = Library:Create('ScrollingFrame', {
             BackgroundTransparency = 1;
             BorderSizePixel = 0;
-            Position = UDim2.new(0.5, 4 + 1, 0, 8 - 1);
-            Size = UDim2.new(0.5, -12 + 2, 0, 507 + 2);
+            Position = UDim2.new(0.5, 6, 0, 12);
+            Size = UDim2.new(0.5, -18, 1, -24);
             CanvasSize = UDim2.new(0, 0, 0, 0);
             BottomImage = '';
             TopImage = '';
-            ScrollBarThickness = 0;
-            ZIndex = 2;
+            ScrollBarThickness = 10;
+            ScrollBarImageColor3 = Library.AccentColor;
+            ZIndex = 130;
             Parent = TabFrame;
         });
 
         Library:Create('UIListLayout', {
-            Padding = UDim.new(0, 8);
+            Padding = UDim.new(0, 12);
             FillDirection = Enum.FillDirection.Vertical;
             SortOrder = Enum.SortOrder.LayoutOrder;
             HorizontalAlignment = Enum.HorizontalAlignment.Center;
@@ -3155,7 +3358,7 @@ function Library:CreateWindow(...)
         });
 
         Library:Create('UIListLayout', {
-            Padding = UDim.new(0, 8);
+            Padding = UDim.new(0, 12);
             FillDirection = Enum.FillDirection.Vertical;
             SortOrder = Enum.SortOrder.LayoutOrder;
             HorizontalAlignment = Enum.HorizontalAlignment.Center;
@@ -3164,7 +3367,7 @@ function Library:CreateWindow(...)
 
         for _, Side in next, { LeftSide, RightSide } do
             Side:WaitForChild('UIListLayout'):GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-                Side.CanvasSize = UDim2.fromOffset(0, Side.UIListLayout.AbsoluteContentSize.Y);
+                Side.CanvasSize = UDim2.fromOffset(0, Side.UIListLayout.AbsoluteContentSize.Y + 12);
             end);
         end;
 
@@ -3198,8 +3401,8 @@ function Library:CreateWindow(...)
                 BackgroundColor3 = Library.BackgroundColor;
                 BorderColor3 = Library.OutlineColor;
                 BorderMode = Enum.BorderMode.Inset;
-                Size = UDim2.new(1, 0, 0, 507 + 2);
-                ZIndex = 2;
+                Size = UDim2.new(1, 0, 0, 420);
+                ZIndex = 140;
                 Parent = Info.Side == 1 and LeftSide or RightSide;
             });
 
@@ -3214,7 +3417,7 @@ function Library:CreateWindow(...)
                 -- BorderMode = Enum.BorderMode.Inset;
                 Size = UDim2.new(1, -2, 1, -2);
                 Position = UDim2.new(0, 1, 0, 1);
-                ZIndex = 4;
+                ZIndex = 150;
                 Parent = BoxOuter;
             });
 
@@ -3225,8 +3428,8 @@ function Library:CreateWindow(...)
             local Highlight = Library:Create('Frame', {
                 BackgroundColor3 = Library.AccentColor;
                 BorderSizePixel = 0;
-                Size = UDim2.new(1, 0, 0, 2);
-                ZIndex = 5;
+                Size = UDim2.new(1, 0, 0, 3);
+                ZIndex = 160;
                 Parent = BoxInner;
             });
 
@@ -3235,20 +3438,20 @@ function Library:CreateWindow(...)
             });
 
             local GroupboxLabel = Library:CreateLabel({
-                Size = UDim2.new(1, 0, 0, 18);
-                Position = UDim2.new(0, 4, 0, 2);
+                Size = UDim2.new(1, 0, 0, 22);
+                Position = UDim2.new(0, 10, 0, 6);
                 TextSize = 14;
                 Text = Info.Name;
                 TextXAlignment = Enum.TextXAlignment.Left;
-                ZIndex = 5;
+                ZIndex = 150;
                 Parent = BoxInner;
             });
 
             local Container = Library:Create('Frame', {
                 BackgroundTransparency = 1;
-                Position = UDim2.new(0, 4, 0, 20);
-                Size = UDim2.new(1, -4, 1, -20);
-                ZIndex = 1;
+                Position = UDim2.new(0, 10, 0, 34);
+                Size = UDim2.new(1, -20, 1, -40);
+                ZIndex = 140;
                 Parent = BoxInner;
             });
 
@@ -3267,13 +3470,13 @@ function Library:CreateWindow(...)
                     end;
                 end;
 
-                BoxOuter.Size = UDim2.new(1, 0, 0, 20 + Size + 2 + 2);
+                BoxOuter.Size = UDim2.new(1, 0, 0, 40 + Size + 8);
             end;
 
             Groupbox.Container = Container;
             setmetatable(Groupbox, BaseGroupbox);
 
-            Groupbox:AddBlank(3);
+            Groupbox:AddBlank(6);
             Groupbox:Resize();
 
             Tab.Groupboxes[Info.Name] = Groupbox;
@@ -3299,7 +3502,7 @@ function Library:CreateWindow(...)
                 BorderColor3 = Library.OutlineColor;
                 BorderMode = Enum.BorderMode.Inset;
                 Size = UDim2.new(1, 0, 0, 0);
-                ZIndex = 2;
+                ZIndex = 140;
                 Parent = Info.Side == 1 and LeftSide or RightSide;
             });
 
@@ -3314,7 +3517,7 @@ function Library:CreateWindow(...)
                 -- BorderMode = Enum.BorderMode.Inset;
                 Size = UDim2.new(1, -2, 1, -2);
                 Position = UDim2.new(0, 1, 0, 1);
-                ZIndex = 4;
+                ZIndex = 150;
                 Parent = BoxOuter;
             });
 
@@ -3325,8 +3528,8 @@ function Library:CreateWindow(...)
             local Highlight = Library:Create('Frame', {
                 BackgroundColor3 = Library.AccentColor;
                 BorderSizePixel = 0;
-                Size = UDim2.new(1, 0, 0, 2);
-                ZIndex = 10;
+                Size = UDim2.new(1, 0, 0, 3);
+                ZIndex = 160;
                 Parent = BoxInner;
             });
 
@@ -3336,9 +3539,9 @@ function Library:CreateWindow(...)
 
             local TabboxButtons = Library:Create('Frame', {
                 BackgroundTransparency = 1;
-                Position = UDim2.new(0, 0, 0, 1);
-                Size = UDim2.new(1, 0, 0, 18);
-                ZIndex = 5;
+                Position = UDim2.new(0, 0, 0, 6);
+                Size = UDim2.new(1, 0, 0, 30);
+                ZIndex = 150;
                 Parent = BoxInner;
             });
 
@@ -3356,7 +3559,7 @@ function Library:CreateWindow(...)
                     BackgroundColor3 = Library.MainColor;
                     BorderColor3 = Color3.new(0, 0, 0);
                     Size = UDim2.new(0.5, 0, 1, 0);
-                    ZIndex = 6;
+                    ZIndex = 160;
                     Parent = TabboxButtons;
                 });
 
@@ -3369,7 +3572,7 @@ function Library:CreateWindow(...)
                     TextSize = 14;
                     Text = Name;
                     TextXAlignment = Enum.TextXAlignment.Center;
-                    ZIndex = 7;
+                    ZIndex = 170;
                     Parent = Button;
                 });
 
@@ -3377,9 +3580,9 @@ function Library:CreateWindow(...)
                     BackgroundColor3 = Library.BackgroundColor;
                     BorderSizePixel = 0;
                     Position = UDim2.new(0, 0, 1, 0);
-                    Size = UDim2.new(1, 0, 0, 1);
+                    Size = UDim2.new(1, 0, 0, 2);
                     Visible = false;
-                    ZIndex = 9;
+                    ZIndex = 190;
                     Parent = Button;
                 });
 
@@ -3389,9 +3592,9 @@ function Library:CreateWindow(...)
 
                 local Container = Library:Create('Frame', {
                     BackgroundTransparency = 1;
-                    Position = UDim2.new(0, 4, 0, 20);
-                    Size = UDim2.new(1, -4, 1, -20);
-                    ZIndex = 1;
+                    Position = UDim2.new(0, 12, 0, 36);
+                    Size = UDim2.new(1, -24, 1, -48);
+                    ZIndex = 140;
                     Visible = false;
                     Parent = BoxInner;
                 });
@@ -3449,7 +3652,7 @@ function Library:CreateWindow(...)
                         end;
                     end;
 
-                    BoxOuter.Size = UDim2.new(1, 0, 0, 20 + Size + 2 + 2);
+                    BoxOuter.Size = UDim2.new(1, 0, 0, 40 + Size + 8);
                 end;
 
                 Button.InputBegan:Connect(function(Input)
@@ -3464,7 +3667,7 @@ function Library:CreateWindow(...)
 
                 setmetatable(Tab, BaseGroupbox);
 
-                Tab:AddBlank(3);
+                Tab:AddBlank(6);
                 Tab:Resize();
 
                 -- Show first tab (number is 2 cus of the UIListLayout that also sits in that instance)
@@ -3478,14 +3681,6 @@ function Library:CreateWindow(...)
             Tab.Tabboxes[Info.Name or ''] = Tabbox;
 
             return Tabbox;
-        end;
-
-        function Tab:AddLeftTabbox(Name)
-            return Tab:AddTabbox({ Name = Name, Side = 1; });
-        end;
-
-        function Tab:AddRightTabbox(Name)
-            return Tab:AddTabbox({ Name = Name, Side = 2; });
         end;
 
         TabButton.InputBegan:Connect(function(Input)
