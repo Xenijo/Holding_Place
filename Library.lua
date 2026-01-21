@@ -1978,7 +1978,7 @@ do
         local Container = Groupbox.Container;
 
         if not Info.Compact then
-            Library:CreateLabel({
+           local Sliderlabel = Library:CreateLabel({
                 Size = UDim2.new(1, 0, 0, 10);
                 TextSize = 14;
                 Text = Info.Text;
@@ -2114,6 +2114,10 @@ do
 
             Library:SafeCallback(Slider.Callback, Slider.Value);
             Library:SafeCallback(Slider.Changed, Slider.Value);
+        end;
+
+        function Slider:SetText(string)
+           return Sliderlabel.Text = string
         end;
 
         SliderInner.InputBegan:Connect(function(Input)
