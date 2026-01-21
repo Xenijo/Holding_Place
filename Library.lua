@@ -1978,7 +1978,7 @@ do
         local Container = Groupbox.Container;
 
         if not Info.Compact then
-           local Sliderlabel = Library:CreateLabel({
+          Library:CreateLabel({
                 Size = UDim2.new(1, 0, 0, 10);
                 TextSize = 14;
                 Text = Info.Text;
@@ -2116,10 +2116,15 @@ do
             Library:SafeCallback(Slider.Changed, Slider.Value);
         end;
 
-        function Slider:SetText(string)
-            Sliderlabel.Text = string
-            return true
-        end;
+       function Slider:SetText(NewText)
+            if type(NewText) ~= "string" then
+                return
+            end
+        
+            Info.Text = NewText
+            Slider:Display()
+        end
+
 
         SliderInner.InputBegan:Connect(function(Input)
             if Input.UserInputType == Enum.UserInputType.MouseButton1 and not Library:MouseIsOverOpenedFrame() then
