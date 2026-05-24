@@ -2935,7 +2935,8 @@ function Library:CreateEspPreviewHud(Info)
     Info = Info or {};
 
     local Groupbox = Info.Groupbox;
-    local Parent = Info.Parent or (Groupbox and Groupbox.Container) or ScreenGui;
+    local Standalone = Info.Standalone == true;
+    local Parent = Info.Parent or (not Standalone and Groupbox and Groupbox.Container) or ScreenGui;
     local Preview = {
         Options = {};
     };
@@ -2950,8 +2951,9 @@ function Library:CreateEspPreviewHud(Info)
         BackgroundColor3 = Library.BackgroundColor;
         BorderColor3 = Library.OutlineColor;
         BorderMode = Enum.BorderMode.Inset;
-        Size = Info.Size or UDim2.new(1, -4, 0, Info.Height or 176);
-        ZIndex = Info.ZIndex or 4;
+        Position = Standalone and (Info.Position or UDim2.fromOffset(24, 220)) or nil;
+        Size = Info.Size or (Standalone and UDim2.fromOffset(430, Info.Height or 540) or UDim2.new(1, -4, 0, Info.Height or 176));
+        ZIndex = Info.ZIndex or (Standalone and 80 or 4);
         Parent = Parent;
     });
 
@@ -3012,6 +3014,82 @@ function Library:CreateEspPreviewHud(Info)
         BackgroundColor3 = 'BackgroundColor';
         BorderColor3 = 'OutlineColor';
     });
+
+    local Viewport = Library:Create('ViewportFrame', {
+        Ambient = Color3.fromRGB(185, 190, 205);
+        BackgroundTransparency = 1;
+        LightColor = Color3.fromRGB(255, 255, 255);
+        LightDirection = Vector3.new(-1, -1, -1);
+        Position = UDim2.fromScale(0, 0);
+        Size = UDim2.fromScale(1, 1);
+        ZIndex = Outer.ZIndex + 3;
+        Parent = Canvas;
+    });
+
+    local PreviewWorld = Instance.new('WorldModel');
+    PreviewWorld.Parent = Viewport;
+
+    local PreviewCamera = Instance.new('Camera');
+    PreviewCamera.FieldOfView = 35;
+    PreviewCamera.Parent = Viewport;
+    Viewport.CurrentCamera = PreviewCamera;
+
+    local PreviewCharacter;
+    local PreviewCharacterSource;
+    local function ClearPreviewCharacter()
+        if PreviewCharacter then
+            PreviewCharacter:Destroy();
+            PreviewCharacter = nil;
+            PreviewCharacterSource = nil;
+        end;
+    end;
+
+    local function UpdatePreviewCharacter()
+        local Character = LocalPlayer and LocalPlayer.Character;
+        if not Character or PreviewCharacterSource == Character then
+            return PreviewCharacter ~= nil;
+        end;
+
+        ClearPreviewCharacter();
+        local Success, Clone = pcall(function()
+            Character.Archivable = true;
+            return Character:Clone();
+        end);
+
+        if not Success or not Clone then
+            return false;
+        end;
+
+        for _, Descendant in ipairs(Clone:GetDescendants()) do
+            if Descendant:IsA('Script') or Descendant:IsA('LocalScript') then
+                Descendant:Destroy();
+            elseif Descendant:IsA('BasePart') then
+                Descendant.Anchored = true;
+                Descendant.CanCollide = false;
+            end;
+        end;
+
+        Clone.Parent = PreviewWorld;
+        PreviewCharacter = Clone;
+        PreviewCharacterSource = Character;
+
+        local Pivot = Clone:GetPivot();
+        Clone:PivotTo(CFrame.new(0, 0, 0) * CFrame.Angles(0, math.rad(180), 0));
+        local _, Size = Clone:GetBoundingBox();
+        local Height = math.max(Size.Y, 5);
+        PreviewCamera.CFrame = CFrame.new(0, Height * 0.12, Height * 2.2) * CFrame.Angles(0, 0, 0);
+        PreviewCamera.Focus = CFrame.new(0, Height * 0.15, 0);
+        return true;
+    end;
+
+    local function GetPreviewBox()
+        local CanvasSize = Canvas.AbsoluteSize;
+        local Width = math.clamp(CanvasSize.X * (Standalone and 0.34 or 0.42), 78, Standalone and 150 or 100);
+        local Height = math.clamp(CanvasSize.Y * (Standalone and 0.68 or 0.72), 96, Standalone and 310 or 150);
+        local Left = (CanvasSize.X - Width) * 0.5;
+        local Top = math.max(Standalone and 74 or 27, (CanvasSize.Y - Height) * 0.48);
+        return Left, Top, Width, Height;
+    end;
 
     local Body = Library:Create('Frame', {
         BackgroundColor3 = Color3.fromRGB(29, 34, 46);
@@ -3144,6 +3222,49 @@ function Library:CreateEspPreviewHud(Info)
         Parent = Canvas;
     }, true);
 
+    local Snapline = Library:Create('Frame', {
+        AnchorPoint = Vector2.new(0.5, 1);
+        BackgroundColor3 = Library.AccentColor;
+        BorderSizePixel = 0;
+        Position = UDim2.new(0.5, 0, 1, -4);
+        Size = UDim2.fromOffset(2, 72);
+        Visible = false;
+        ZIndex = Outer.ZIndex + 7;
+        Parent = Canvas;
+    });
+
+    local HeadDot = Library:Create('Frame', {
+        BackgroundColor3 = Library.AccentColor;
+        BorderSizePixel = 0;
+        Size = UDim2.fromOffset(8, 8);
+        Visible = false;
+        ZIndex = Outer.ZIndex + 9;
+        Parent = Canvas;
+    });
+    Library:Create('UICorner', { CornerRadius = UDim.new(1, 0); Parent = HeadDot; });
+
+    local LookVector = Library:Create('Frame', {
+        BackgroundColor3 = Library.AccentColor;
+        BorderSizePixel = 0;
+        Size = UDim2.fromOffset(54, 2);
+        Visible = false;
+        ZIndex = Outer.ZIndex + 9;
+        Parent = Canvas;
+    });
+
+    local Skeleton = {};
+    for Index = 1, 6 do
+        Skeleton[Index] = Library:Create('Frame', {
+            AnchorPoint = Vector2.new(0.5, 0.5);
+            BackgroundColor3 = Library.AccentColor;
+            BorderSizePixel = 0;
+            Size = UDim2.fromOffset(2, 28);
+            Visible = false;
+            ZIndex = Outer.ZIndex + 8;
+            Parent = Canvas;
+        });
+    end;
+
     function Preview:SetOptions(Options)
         Options = Options or {};
         self.Options = Options;
@@ -3169,10 +3290,24 @@ function Library:CreateEspPreviewHud(Info)
         local TextColor = Options.TextColor or Color3.fromRGB(235, 239, 255);
         local OutlineColor = Options.TextOutlineColor or Color3.new(0, 0, 0);
         local OutlineAlpha = math.clamp(tonumber(Options.TextOutlineTransparency) or 0, 0, 1);
+        local Modern = Options.Modern or {};
+        local Left, Top, Width, Height = GetPreviewBox();
+        local AvatarVisible = UpdatePreviewCharacter();
 
-        SetProperty(Fill, 'Visible', FillEnabled);
+        SetProperty(Viewport, 'Visible', AvatarVisible);
+        SetProperty(Body, 'Visible', not AvatarVisible);
+        SetProperty(Head, 'Visible', not AvatarVisible);
+        SetProperty(Fill, 'Position', UDim2.fromOffset(Left, Top));
+        SetProperty(Fill, 'Size', UDim2.fromOffset(Width, Height));
+        SetProperty(Box, 'Position', UDim2.fromOffset(Left, Top));
+        SetProperty(Box, 'Size', UDim2.fromOffset(Width, Height));
+        SetProperty(Body, 'Position', UDim2.fromOffset(Left + Width * 0.17, Top + Height * 0.16));
+        SetProperty(Body, 'Size', UDim2.fromOffset(Width * 0.66, Height * 0.72));
+        SetProperty(Head, 'Position', UDim2.fromOffset(Left + Width * 0.5 - 13, Top - 8));
+
+        SetProperty(Fill, 'Visible', FillEnabled or Modern.Chams == true);
         SetProperty(Fill, 'BackgroundColor3', Options.FillColor or BoxColor);
-        SetProperty(Fill, 'BackgroundTransparency', FillTransparency);
+        SetProperty(Fill, 'BackgroundTransparency', FillEnabled and FillTransparency or math.clamp(tonumber(Modern.ChamsFillTransparency) or 0.72, 0, 1));
         SetProperty(Box, 'Visible', BoxEnabled and BoxStyle ~= 'Corner');
         SetProperty(BoxStroke, 'Color', BoxColor);
         SetProperty(BoxStroke, 'Thickness', OutlineThickness);
@@ -3185,10 +3320,6 @@ function Library:CreateEspPreviewHud(Info)
             SetProperty(Corner, 'BackgroundTransparency', OutlineTransparency);
         end;
 
-        local Left = Box.Position.X.Offset;
-        local Top = Box.Position.Y.Offset;
-        local Width = Box.Size.X.Offset;
-        local Height = Box.Size.Y.Offset;
         local function DrawCorner(Index, X, Y, W, H)
             SetProperty(Corners[Index], 'Position', UDim2.fromOffset(X, Y));
             SetProperty(Corners[Index], 'Size', UDim2.fromOffset(W, H));
@@ -3206,15 +3337,15 @@ function Library:CreateEspPreviewHud(Info)
         SetProperty(HealthTrack, 'Visible', HealthEnabled);
         SetProperty(HealthFill, 'Visible', HealthEnabled);
         SetProperty(HealthTrack, 'BackgroundColor3', Options.HealthTrackColor or Color3.fromRGB(18, 20, 28));
-        SetProperty(HealthTrack, 'Position', UDim2.new(0.5, HealthX, 0, 27));
-        SetProperty(HealthTrack, 'Size', UDim2.fromOffset(HealthTrackWidth, 96));
+        SetProperty(HealthTrack, 'Position', UDim2.fromOffset(HealthSide == 'Right' and Left + Width + 8 or Left - HealthTrackWidth - 8, Top));
+        SetProperty(HealthTrack, 'Size', UDim2.fromOffset(HealthTrackWidth, Height));
         SetProperty(HealthFill, 'BackgroundColor3', Options.HealthColor or Color3.fromRGB(72, 255, 140));
         SetProperty(HealthFill, 'Position', UDim2.new(0.5, -HealthBarWidth / 2, 1, 0));
         SetProperty(HealthFill, 'Size', UDim2.new(0, HealthBarWidth, HealthPercent, 0));
         SetProperty(HealthText, 'Visible', HealthEnabled and Options.ShowHealthText == true);
         SetProperty(HealthText, 'Text', tostring(math.floor(HealthPercent * 100 + 0.5)));
         SetProperty(HealthText, 'TextSize', math.clamp(math.floor((tonumber(Options.HealthTextSize) or 11) + 0.5), 8, 18));
-        SetProperty(HealthText, 'Position', UDim2.new(0.5, HealthSide == 'Right' and 54 or -82, 0, 66));
+        SetProperty(HealthText, 'Position', UDim2.fromOffset(HealthSide == 'Right' and Left + Width + 14 or Left - 38, Top + Height * (1 - HealthPercent)));
 
         SetProperty(NameLabel, 'Visible', ShowName);
         SetProperty(NameLabel, 'Text', Options.NameText or 'TargetPlayer');
@@ -3222,6 +3353,8 @@ function Library:CreateEspPreviewHud(Info)
         SetProperty(NameLabel, 'TextSize', math.clamp(math.floor((tonumber(Options.NameSize) or 13) + 0.5), 9, 22));
         SetProperty(NameLabel, 'TextStrokeTransparency', Options.TextOutline == false and 1 or OutlineAlpha);
         SetProperty(NameLabel, 'TextStrokeColor3', OutlineColor);
+        SetProperty(NameLabel, 'Position', UDim2.fromOffset(Left - 60, math.max(4, Top - 28)));
+        SetProperty(NameLabel, 'Size', UDim2.fromOffset(Width + 120, 22));
 
         local InfoText = {};
         if Options.ShowTool ~= false then
@@ -3237,6 +3370,43 @@ function Library:CreateEspPreviewHud(Info)
         SetProperty(InfoLabel, 'TextSize', math.clamp(math.floor((tonumber(Options.InfoSize) or 12) + 0.5), 8, 18));
         SetProperty(InfoLabel, 'TextStrokeTransparency', Options.TextOutline == false and 1 or OutlineAlpha);
         SetProperty(InfoLabel, 'TextStrokeColor3', OutlineColor);
+        SetProperty(InfoLabel, 'Position', UDim2.fromOffset(Left - 70, Top + Height + 10));
+        SetProperty(InfoLabel, 'Size', UDim2.fromOffset(Width + 140, 20));
+
+        local Accent = Modern.DynamicAccent and (Modern.VisibleColor or BoxColor) or BoxColor;
+        local CenterX = Left + Width * 0.5;
+        SetProperty(Snapline, 'Visible', Modern.Snapline == true);
+        SetProperty(Snapline, 'BackgroundColor3', Accent);
+        SetProperty(Snapline, 'Position', UDim2.fromOffset(CenterX, Canvas.AbsoluteSize.Y - 5));
+        SetProperty(Snapline, 'Size', UDim2.fromOffset(math.max(1, tonumber(Modern.SkeletonThickness) or 2), math.max(12, Canvas.AbsoluteSize.Y - (Top + Height) - 10)));
+
+        SetProperty(HeadDot, 'Visible', Modern.HeadDot == true);
+        SetProperty(HeadDot, 'BackgroundColor3', Accent);
+        SetProperty(HeadDot, 'Position', UDim2.fromOffset(CenterX - 4, Top + 8));
+        SetProperty(HeadDot, 'Size', UDim2.fromOffset(tonumber(Modern.DotSize) or 8, tonumber(Modern.DotSize) or 8));
+
+        SetProperty(LookVector, 'Visible', Modern.LookVector == true);
+        SetProperty(LookVector, 'BackgroundColor3', Accent);
+        SetProperty(LookVector, 'Position', UDim2.fromOffset(CenterX, Top + Height * 0.28));
+        SetProperty(LookVector, 'Size', UDim2.fromOffset(math.clamp(tonumber(Modern.LookVectorLength) or 54, 20, 120), math.max(1, tonumber(Modern.SkeletonThickness) or 2)));
+
+        local SkeletonVisible = Modern.Skeleton == true;
+        local Thickness = math.max(1, tonumber(Modern.SkeletonThickness) or 2);
+        local SkeletonParts = {
+            {CenterX, Top + Height * 0.36, Thickness, Height * 0.28, 0},
+            {CenterX - Width * 0.2, Top + Height * 0.44, Thickness, Height * 0.27, -28},
+            {CenterX + Width * 0.2, Top + Height * 0.44, Thickness, Height * 0.27, 28},
+            {CenterX - Width * 0.12, Top + Height * 0.73, Thickness, Height * 0.34, 14},
+            {CenterX + Width * 0.12, Top + Height * 0.73, Thickness, Height * 0.34, -14},
+            {CenterX, Top + Height * 0.2, Thickness, Height * 0.12, 0},
+        };
+        for Index, Part in ipairs(SkeletonParts) do
+            SetProperty(Skeleton[Index], 'Visible', SkeletonVisible);
+            SetProperty(Skeleton[Index], 'BackgroundColor3', Accent);
+            SetProperty(Skeleton[Index], 'Position', UDim2.fromOffset(Part[1], Part[2]));
+            SetProperty(Skeleton[Index], 'Size', UDim2.fromOffset(Part[3], Part[4]));
+            SetProperty(Skeleton[Index], 'Rotation', Part[5]);
+        end;
     end;
 
     function Preview:SetVisible(Value)
@@ -3247,6 +3417,7 @@ function Library:CreateEspPreviewHud(Info)
     end;
 
     function Preview:Destroy()
+        ClearPreviewCharacter();
         Outer:Destroy();
         if Groupbox and Groupbox.Resize then
             Groupbox:Resize();
@@ -3271,6 +3442,13 @@ function Library:CreateEspPreviewHud(Info)
     Preview.HealthText = HealthText;
     Preview.NameLabel = NameLabel;
     Preview.InfoLabel = InfoLabel;
+    Preview.Viewport = Viewport;
+    Preview.World = PreviewWorld;
+    Preview.Camera = PreviewCamera;
+    Preview.Snapline = Snapline;
+    Preview.HeadDot = HeadDot;
+    Preview.LookVector = LookVector;
+    Preview.Skeleton = Skeleton;
 
     Preview:SetOptions(Info.Options);
 
@@ -3281,6 +3459,10 @@ function Library:CreateEspPreviewHud(Info)
         if Groupbox.Resize then
             Groupbox:Resize();
         end;
+    end;
+
+    if Standalone and Library.MakeDraggable then
+        Library:MakeDraggable(Outer, 24);
     end;
 
     return Preview;
