@@ -2729,6 +2729,24 @@ function Library:CreateHudPanel(Info)
         BorderColor3 = 'OutlineColor';
     }, true);
 
+    local InnerGradient = Library:Create('UIGradient', {
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Library:GetDarkerColor(Library.MainColor)),
+            ColorSequenceKeypoint.new(1, Library.MainColor),
+        });
+        Rotation = -90;
+        Parent = Inner;
+    });
+
+    Library:AddToRegistry(InnerGradient, {
+        Color = function()
+            return ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Library:GetDarkerColor(Library.MainColor)),
+                ColorSequenceKeypoint.new(1, Library.MainColor),
+            });
+        end;
+    }, true);
+
     local Accent = Library:Create('Frame', {
         BackgroundColor3 = Library.AccentColor;
         BorderSizePixel = 0;
@@ -2761,6 +2779,7 @@ function Library:CreateHudPanel(Info)
 
     Library:Create('UIListLayout', {
         FillDirection = Enum.FillDirection.Vertical;
+        Padding = UDim.new(0, 2);
         SortOrder = Enum.SortOrder.LayoutOrder;
         Parent = Container;
     });
@@ -2787,9 +2806,15 @@ function Library:CreateHudPanel(Info)
         Parent = BarOuter;
     });
 
-    Library:AddToRegistry(BarFill, {
-        BackgroundColor3 = 'AccentColor';
-    }, true);
+    local BarGradient = Library:Create('UIGradient', {
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(251, 113, 133)),
+            ColorSequenceKeypoint.new(0.55, Color3.fromRGB(251, 191, 36)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(94, 234, 212)),
+        });
+        Rotation = 0;
+        Parent = BarFill;
+    });
 
     local BarText = Library:CreateLabel({
         Size = UDim2.new(1, 0, 1, 0);
@@ -2828,7 +2853,8 @@ function Library:CreateHudPanel(Info)
             end;
         end;
 
-        local Height = 23 + ExtraHeight + (Count * (Info.LineHeight or 16)) + 4;
+        local Spacing = math.max(0, Count + (BarOuter.Visible and 1 or 0) - 1) * 2;
+        local Height = 23 + ExtraHeight + (Count * (Info.LineHeight or 16)) + Spacing + 4;
         Outer.Size = UDim2.fromOffset(Info.Width or 230, Height);
     end;
 
@@ -2858,12 +2884,14 @@ function Library:CreateHudPanel(Info)
         BarFill.Size = UDim2.new(Percent, 0, 1, 0);
         BarText.Text = Text or '';
 
-        if typeof(Color) == 'Color3' then
+        if typeof(Color) == 'ColorSequence' then
+            BarGradient.Color = Color;
+            BarGradient.Enabled = true;
+        elseif typeof(Color) == 'Color3' then
+            BarGradient.Enabled = false;
             BarFill.BackgroundColor3 = Color;
-            local Reg = Library.RegistryMap[BarFill];
-            if Reg then
-                Reg.Properties.BackgroundColor3 = Color;
-            end;
+        else
+            BarGradient.Enabled = true;
         end;
 
         self:Resize();
@@ -2880,10 +2908,12 @@ function Library:CreateHudPanel(Info)
 
     Panel.Outer = Outer;
     Panel.Inner = Inner;
+    Panel.InnerGradient = InnerGradient;
     Panel.Title = Title;
     Panel.Container = Container;
     Panel.BarOuter = BarOuter;
     Panel.BarFill = BarFill;
+    Panel.BarGradient = BarGradient;
     Panel.BarText = BarText;
 
     Library:MakeDraggable(Outer, 24);
