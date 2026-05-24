@@ -2697,6 +2697,136 @@ do
     end;
 end;
 
+function Library:CreateHudPanel(Info)
+    Info = Info or {};
+
+    local Panel = {
+        Lines = {};
+        MaxLines = Info.MaxLines or 8;
+    };
+
+    local Outer = Library:Create('Frame', {
+        AnchorPoint = Info.AnchorPoint or Vector2.new(0, 0);
+        BorderColor3 = Color3.new(0, 0, 0);
+        Position = Info.Position or UDim2.fromOffset(10, 220);
+        Size = UDim2.fromOffset(Info.Width or 230, 22);
+        Visible = Info.Visible == true;
+        ZIndex = Info.ZIndex or 100;
+        Parent = ScreenGui;
+    });
+
+    local Inner = Library:Create('Frame', {
+        BackgroundColor3 = Library.MainColor;
+        BorderColor3 = Library.OutlineColor;
+        BorderMode = Enum.BorderMode.Inset;
+        Size = UDim2.new(1, 0, 1, 0);
+        ZIndex = Outer.ZIndex + 1;
+        Parent = Outer;
+    });
+
+    Library:AddToRegistry(Inner, {
+        BackgroundColor3 = 'MainColor';
+        BorderColor3 = 'OutlineColor';
+    }, true);
+
+    local Accent = Library:Create('Frame', {
+        BackgroundColor3 = Library.AccentColor;
+        BorderSizePixel = 0;
+        Size = UDim2.new(1, 0, 0, 2);
+        ZIndex = Outer.ZIndex + 2;
+        Parent = Inner;
+    });
+
+    Library:AddToRegistry(Accent, {
+        BackgroundColor3 = 'AccentColor';
+    }, true);
+
+    local Title = Library:CreateLabel({
+        Position = UDim2.fromOffset(5, 2);
+        Size = UDim2.new(1, -10, 0, 18);
+        Text = Info.Title or 'Panel';
+        TextSize = 14;
+        TextXAlignment = Enum.TextXAlignment.Left;
+        ZIndex = Outer.ZIndex + 4;
+        Parent = Inner;
+    }, true);
+
+    local Container = Library:Create('Frame', {
+        BackgroundTransparency = 1;
+        Position = UDim2.fromOffset(5, 21);
+        Size = UDim2.new(1, -10, 1, -23);
+        ZIndex = Outer.ZIndex + 3;
+        Parent = Inner;
+    });
+
+    Library:Create('UIListLayout', {
+        FillDirection = Enum.FillDirection.Vertical;
+        SortOrder = Enum.SortOrder.LayoutOrder;
+        Parent = Container;
+    });
+
+    for Index = 1, Panel.MaxLines do
+        local Line = Library:CreateLabel({
+            Size = UDim2.new(1, 0, 0, Info.LineHeight or 16);
+            Text = '';
+            TextSize = Info.TextSize or 13;
+            TextXAlignment = Enum.TextXAlignment.Left;
+            TextTruncate = Enum.TextTruncate.AtEnd;
+            Visible = false;
+            ZIndex = Outer.ZIndex + 4;
+            Parent = Container;
+        }, true);
+
+        Panel.Lines[Index] = Line;
+    end;
+
+    function Panel:Resize()
+        local Count = 0;
+        for _, Line in next, self.Lines do
+            if Line.Visible then
+                Count = Count + 1;
+            end;
+        end;
+
+        local Height = 23 + (Count * (Info.LineHeight or 16)) + 4;
+        Outer.Size = UDim2.fromOffset(Info.Width or 230, Height);
+    end;
+
+    function Panel:SetVisible(Value)
+        Outer.Visible = Value == true;
+    end;
+
+    function Panel:SetTitle(Text)
+        Title.Text = Text or '';
+    end;
+
+    function Panel:SetLines(Lines)
+        Lines = Lines or {};
+
+        for Index, Line in next, self.Lines do
+            local Text = Lines[Index];
+            Line.Text = Text or '';
+            Line.Visible = Text ~= nil and Text ~= '';
+        end;
+
+        self:Resize();
+    end;
+
+    function Panel:Destroy()
+        Outer:Destroy();
+    end;
+
+    Panel.Outer = Outer;
+    Panel.Inner = Inner;
+    Panel.Title = Title;
+    Panel.Container = Container;
+
+    Library:MakeDraggable(Outer, 24);
+    Panel:Resize();
+
+    return Panel;
+end;
+
 -- < Create other UI elements >
 do
     Library.NotificationArea = Library:Create('Frame', {
