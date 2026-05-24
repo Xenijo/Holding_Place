@@ -2931,6 +2931,361 @@ function Library:CreateHudPanel(Info)
     return Panel;
 end;
 
+function Library:CreateEspPreviewHud(Info)
+    Info = Info or {};
+
+    local Groupbox = Info.Groupbox;
+    local Parent = Info.Parent or (Groupbox and Groupbox.Container) or ScreenGui;
+    local Preview = {
+        Options = {};
+    };
+
+    local function SetProperty(Object, Key, Value)
+        if Object and Object[Key] ~= Value then
+            Object[Key] = Value;
+        end;
+    end;
+
+    local Outer = Library:Create('Frame', {
+        BackgroundColor3 = Library.BackgroundColor;
+        BorderColor3 = Library.OutlineColor;
+        BorderMode = Enum.BorderMode.Inset;
+        Size = Info.Size or UDim2.new(1, -4, 0, Info.Height or 176);
+        ZIndex = Info.ZIndex or 4;
+        Parent = Parent;
+    });
+
+    Library:AddToRegistry(Outer, {
+        BackgroundColor3 = 'BackgroundColor';
+        BorderColor3 = 'OutlineColor';
+    });
+
+    local Inner = Library:Create('Frame', {
+        BackgroundColor3 = Library.MainColor;
+        BorderColor3 = Color3.new(0, 0, 0);
+        BorderMode = Enum.BorderMode.Inset;
+        Position = UDim2.fromOffset(1, 1);
+        Size = UDim2.new(1, -2, 1, -2);
+        ZIndex = Outer.ZIndex + 1;
+        Parent = Outer;
+    });
+
+    Library:AddToRegistry(Inner, {
+        BackgroundColor3 = 'MainColor';
+    });
+
+    local Accent = Library:Create('Frame', {
+        BackgroundColor3 = Library.AccentColor;
+        BorderSizePixel = 0;
+        Size = UDim2.new(1, 0, 0, 2);
+        ZIndex = Outer.ZIndex + 3;
+        Parent = Inner;
+    });
+
+    Library:AddToRegistry(Accent, {
+        BackgroundColor3 = 'AccentColor';
+    }, true);
+
+    local Title = Library:CreateLabel({
+        Position = UDim2.fromOffset(7, 4);
+        Size = UDim2.new(1, -14, 0, 16);
+        Text = Info.Title or 'ESP Preview';
+        TextSize = 13;
+        TextXAlignment = Enum.TextXAlignment.Left;
+        ZIndex = Outer.ZIndex + 4;
+        Parent = Inner;
+    }, true);
+
+    local Canvas = Library:Create('Frame', {
+        BackgroundColor3 = Library.BackgroundColor;
+        BackgroundTransparency = 0.18;
+        BorderColor3 = Library.OutlineColor;
+        BorderMode = Enum.BorderMode.Inset;
+        ClipsDescendants = true;
+        Position = UDim2.fromOffset(7, 24);
+        Size = UDim2.new(1, -14, 1, -31);
+        ZIndex = Outer.ZIndex + 2;
+        Parent = Inner;
+    });
+
+    Library:AddToRegistry(Canvas, {
+        BackgroundColor3 = 'BackgroundColor';
+        BorderColor3 = 'OutlineColor';
+    });
+
+    local Body = Library:Create('Frame', {
+        BackgroundColor3 = Color3.fromRGB(29, 34, 46);
+        BackgroundTransparency = 0.12;
+        BorderSizePixel = 0;
+        Position = UDim2.new(0.5, -26, 0, 34);
+        Size = UDim2.fromOffset(52, 82);
+        ZIndex = Outer.ZIndex + 3;
+        Parent = Canvas;
+    });
+
+    local BodyCorner = Library:Create('UICorner', {
+        CornerRadius = UDim.new(0, 9);
+        Parent = Body;
+    });
+
+    local BodyStroke = Library:Create('UIStroke', {
+        Color = Color3.fromRGB(64, 76, 104);
+        Thickness = 1;
+        Transparency = 0.35;
+        Parent = Body;
+    });
+
+    local Head = Library:Create('Frame', {
+        BackgroundColor3 = Color3.fromRGB(43, 50, 68);
+        BorderSizePixel = 0;
+        Position = UDim2.new(0.5, -13, 0, 12);
+        Size = UDim2.fromOffset(26, 26);
+        ZIndex = Outer.ZIndex + 4;
+        Parent = Canvas;
+    });
+
+    Library:Create('UICorner', {
+        CornerRadius = UDim.new(1, 0);
+        Parent = Head;
+    });
+
+    local Fill = Library:Create('Frame', {
+        BackgroundColor3 = Color3.fromRGB(80, 140, 255);
+        BackgroundTransparency = 0.82;
+        BorderSizePixel = 0;
+        Position = UDim2.new(0.5, -39, 0, 27);
+        Size = UDim2.fromOffset(78, 96);
+        ZIndex = Outer.ZIndex + 4;
+        Parent = Canvas;
+    });
+
+    local Box = Library:Create('Frame', {
+        BackgroundTransparency = 1;
+        BorderSizePixel = 0;
+        Position = UDim2.new(0.5, -39, 0, 27);
+        Size = UDim2.fromOffset(78, 96);
+        ZIndex = Outer.ZIndex + 6;
+        Parent = Canvas;
+    });
+
+    local BoxStroke = Library:Create('UIStroke', {
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+        Color = Color3.fromRGB(80, 140, 255);
+        Thickness = 2;
+        Transparency = 0;
+        Parent = Box;
+    });
+
+    local BoxCorner = Library:Create('UICorner', {
+        CornerRadius = UDim.new(0, 0);
+        Parent = Box;
+    });
+
+    local Corners = {};
+    for Index = 1, 8 do
+        Corners[Index] = Library:Create('Frame', {
+            BackgroundColor3 = Color3.fromRGB(80, 140, 255);
+            BorderSizePixel = 0;
+            Visible = false;
+            ZIndex = Outer.ZIndex + 7;
+            Parent = Canvas;
+        });
+    end;
+
+    local HealthTrack = Library:Create('Frame', {
+        BackgroundColor3 = Color3.fromRGB(18, 20, 28);
+        BorderSizePixel = 0;
+        Position = UDim2.new(0.5, -50, 0, 27);
+        Size = UDim2.fromOffset(4, 96);
+        ZIndex = Outer.ZIndex + 6;
+        Parent = Canvas;
+    });
+
+    local HealthFill = Library:Create('Frame', {
+        AnchorPoint = Vector2.new(0, 1);
+        BackgroundColor3 = Color3.fromRGB(72, 255, 140);
+        BorderSizePixel = 0;
+        Position = UDim2.new(0, 0, 1, 0);
+        Size = UDim2.new(1, 0, 0.74, 0);
+        ZIndex = Outer.ZIndex + 7;
+        Parent = HealthTrack;
+    });
+
+    local HealthText = Library:CreateLabel({
+        BackgroundTransparency = 1;
+        Position = UDim2.new(0.5, -82, 0, 66);
+        Size = UDim2.fromOffset(28, 14);
+        Text = '74';
+        TextSize = 11;
+        TextXAlignment = Enum.TextXAlignment.Right;
+        ZIndex = Outer.ZIndex + 8;
+        Parent = Canvas;
+    }, true);
+
+    local NameLabel = Library:CreateLabel({
+        BackgroundTransparency = 1;
+        Position = UDim2.new(0, 5, 0, 8);
+        Size = UDim2.new(1, -10, 0, 18);
+        Text = 'TargetPlayer';
+        TextSize = 13;
+        TextXAlignment = Enum.TextXAlignment.Center;
+        ZIndex = Outer.ZIndex + 8;
+        Parent = Canvas;
+    }, true);
+
+    local InfoLabel = Library:CreateLabel({
+        BackgroundTransparency = 1;
+        Position = UDim2.new(0, 5, 1, -22);
+        Size = UDim2.new(1, -10, 0, 16);
+        Text = 'Rifle  |  86m';
+        TextSize = 12;
+        TextXAlignment = Enum.TextXAlignment.Center;
+        ZIndex = Outer.ZIndex + 8;
+        Parent = Canvas;
+    }, true);
+
+    function Preview:SetOptions(Options)
+        Options = Options or {};
+        self.Options = Options;
+
+        local BoxEnabled = Options.BoxEnabled ~= false;
+        local BoxStyle = Options.BoxStyle or 'Corner';
+        local BoxColor = Options.BoxColor or Library.AccentColor;
+        local FillEnabled = Options.FillEnabled == true and BoxEnabled;
+        local FillTransparency = math.clamp(tonumber(Options.FillTransparency) or 0.82, 0, 1);
+        local OutlineTransparency = math.clamp(tonumber(Options.OutlineTransparency) or 0, 0, 1);
+        local OutlineThickness = math.clamp(math.floor((tonumber(Options.OutlineThickness) or 2) + 0.5), 1, 8);
+        local CornerLength = math.clamp(math.floor((tonumber(Options.CornerLength) or 16) + 0.5), 4, 36);
+        local CornerThickness = math.clamp(math.floor((tonumber(Options.CornerThickness) or OutlineThickness) + 0.5), 1, 8);
+        local HealthEnabled = Options.HealthEnabled ~= false;
+        local HealthSide = Options.HealthSide == 'Right' and 'Right' or 'Left';
+        local HealthPercent = math.clamp(tonumber(Options.HealthPercent) or 0.74, 0, 1);
+        local HealthTrackWidth = math.clamp(math.floor((tonumber(Options.HealthTrackWidth) or 4) + 0.5), 2, 12);
+        local HealthBarWidth = math.clamp(math.floor((tonumber(Options.HealthBarWidth) or HealthTrackWidth) + 0.5), 1, HealthTrackWidth);
+        local HealthX = HealthSide == 'Right' and 44 or -50;
+        local TextEnabled = Options.TextEnabled ~= false;
+        local ShowName = TextEnabled and Options.ShowName ~= false;
+        local ShowInfo = TextEnabled and (Options.ShowTool ~= false or Options.ShowDistance ~= false);
+        local TextColor = Options.TextColor or Color3.fromRGB(235, 239, 255);
+        local OutlineColor = Options.TextOutlineColor or Color3.new(0, 0, 0);
+        local OutlineAlpha = math.clamp(tonumber(Options.TextOutlineTransparency) or 0, 0, 1);
+
+        SetProperty(Fill, 'Visible', FillEnabled);
+        SetProperty(Fill, 'BackgroundColor3', Options.FillColor or BoxColor);
+        SetProperty(Fill, 'BackgroundTransparency', FillTransparency);
+        SetProperty(Box, 'Visible', BoxEnabled and BoxStyle ~= 'Corner');
+        SetProperty(BoxStroke, 'Color', BoxColor);
+        SetProperty(BoxStroke, 'Thickness', OutlineThickness);
+        SetProperty(BoxStroke, 'Transparency', OutlineTransparency);
+        SetProperty(BoxCorner, 'CornerRadius', UDim.new(0, BoxStyle == 'Rounded' and math.clamp(tonumber(Options.RoundedRadius) or 8, 0, 24) or 0));
+
+        for _, Corner in next, Corners do
+            SetProperty(Corner, 'Visible', BoxEnabled and BoxStyle == 'Corner');
+            SetProperty(Corner, 'BackgroundColor3', BoxColor);
+            SetProperty(Corner, 'BackgroundTransparency', OutlineTransparency);
+        end;
+
+        local Left = Box.Position.X.Offset;
+        local Top = Box.Position.Y.Offset;
+        local Width = Box.Size.X.Offset;
+        local Height = Box.Size.Y.Offset;
+        local function DrawCorner(Index, X, Y, W, H)
+            SetProperty(Corners[Index], 'Position', UDim2.fromOffset(X, Y));
+            SetProperty(Corners[Index], 'Size', UDim2.fromOffset(W, H));
+        end;
+
+        DrawCorner(1, Left, Top, CornerLength, CornerThickness);
+        DrawCorner(2, Left, Top, CornerThickness, CornerLength);
+        DrawCorner(3, Left + Width - CornerLength, Top, CornerLength, CornerThickness);
+        DrawCorner(4, Left + Width - CornerThickness, Top, CornerThickness, CornerLength);
+        DrawCorner(5, Left, Top + Height - CornerThickness, CornerLength, CornerThickness);
+        DrawCorner(6, Left, Top + Height - CornerLength, CornerThickness, CornerLength);
+        DrawCorner(7, Left + Width - CornerLength, Top + Height - CornerThickness, CornerLength, CornerThickness);
+        DrawCorner(8, Left + Width - CornerThickness, Top + Height - CornerLength, CornerThickness, CornerLength);
+
+        SetProperty(HealthTrack, 'Visible', HealthEnabled);
+        SetProperty(HealthFill, 'Visible', HealthEnabled);
+        SetProperty(HealthTrack, 'BackgroundColor3', Options.HealthTrackColor or Color3.fromRGB(18, 20, 28));
+        SetProperty(HealthTrack, 'Position', UDim2.new(0.5, HealthX, 0, 27));
+        SetProperty(HealthTrack, 'Size', UDim2.fromOffset(HealthTrackWidth, 96));
+        SetProperty(HealthFill, 'BackgroundColor3', Options.HealthColor or Color3.fromRGB(72, 255, 140));
+        SetProperty(HealthFill, 'Position', UDim2.new(0.5, -HealthBarWidth / 2, 1, 0));
+        SetProperty(HealthFill, 'Size', UDim2.new(0, HealthBarWidth, HealthPercent, 0));
+        SetProperty(HealthText, 'Visible', HealthEnabled and Options.ShowHealthText == true);
+        SetProperty(HealthText, 'Text', tostring(math.floor(HealthPercent * 100 + 0.5)));
+        SetProperty(HealthText, 'TextSize', math.clamp(math.floor((tonumber(Options.HealthTextSize) or 11) + 0.5), 8, 18));
+        SetProperty(HealthText, 'Position', UDim2.new(0.5, HealthSide == 'Right' and 54 or -82, 0, 66));
+
+        SetProperty(NameLabel, 'Visible', ShowName);
+        SetProperty(NameLabel, 'Text', Options.NameText or 'TargetPlayer');
+        SetProperty(NameLabel, 'TextColor3', TextColor);
+        SetProperty(NameLabel, 'TextSize', math.clamp(math.floor((tonumber(Options.NameSize) or 13) + 0.5), 9, 22));
+        SetProperty(NameLabel, 'TextStrokeTransparency', Options.TextOutline == false and 1 or OutlineAlpha);
+        SetProperty(NameLabel, 'TextStrokeColor3', OutlineColor);
+
+        local InfoText = {};
+        if Options.ShowTool ~= false then
+            InfoText[#InfoText + 1] = Options.ToolText or 'Rifle';
+        end;
+        if Options.ShowDistance ~= false then
+            InfoText[#InfoText + 1] = Options.DistanceText or '86m';
+        end;
+
+        SetProperty(InfoLabel, 'Visible', ShowInfo);
+        SetProperty(InfoLabel, 'Text', table.concat(InfoText, '  |  '));
+        SetProperty(InfoLabel, 'TextColor3', TextColor);
+        SetProperty(InfoLabel, 'TextSize', math.clamp(math.floor((tonumber(Options.InfoSize) or 12) + 0.5), 8, 18));
+        SetProperty(InfoLabel, 'TextStrokeTransparency', Options.TextOutline == false and 1 or OutlineAlpha);
+        SetProperty(InfoLabel, 'TextStrokeColor3', OutlineColor);
+    end;
+
+    function Preview:SetVisible(Value)
+        Outer.Visible = Value == true;
+        if Groupbox and Groupbox.Resize then
+            Groupbox:Resize();
+        end;
+    end;
+
+    function Preview:Destroy()
+        Outer:Destroy();
+        if Groupbox and Groupbox.Resize then
+            Groupbox:Resize();
+        end;
+    end;
+
+    Preview.Outer = Outer;
+    Preview.Inner = Inner;
+    Preview.Canvas = Canvas;
+    Preview.Title = Title;
+    Preview.Body = Body;
+    Preview.BodyCorner = BodyCorner;
+    Preview.BodyStroke = BodyStroke;
+    Preview.Head = Head;
+    Preview.Fill = Fill;
+    Preview.Box = Box;
+    Preview.BoxStroke = BoxStroke;
+    Preview.BoxCorner = BoxCorner;
+    Preview.Corners = Corners;
+    Preview.HealthTrack = HealthTrack;
+    Preview.HealthFill = HealthFill;
+    Preview.HealthText = HealthText;
+    Preview.NameLabel = NameLabel;
+    Preview.InfoLabel = InfoLabel;
+
+    Preview:SetOptions(Info.Options);
+
+    if Groupbox then
+        if Groupbox.AddBlank then
+            Groupbox:AddBlank(5);
+        end;
+        if Groupbox.Resize then
+            Groupbox:Resize();
+        end;
+    end;
+
+    return Preview;
+end;
+
 -- < Create other UI elements >
 do
     Library.NotificationArea = Library:Create('Frame', {
