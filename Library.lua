@@ -2765,6 +2765,41 @@ function Library:CreateHudPanel(Info)
         Parent = Container;
     });
 
+    local BarOuter = Library:Create('Frame', {
+        BackgroundColor3 = Library.BackgroundColor;
+        BorderColor3 = Library.OutlineColor;
+        Size = UDim2.new(1, 0, 0, Info.BarHeight or 8);
+        Visible = false;
+        ZIndex = Outer.ZIndex + 4;
+        Parent = Container;
+    });
+
+    Library:AddToRegistry(BarOuter, {
+        BackgroundColor3 = 'BackgroundColor';
+        BorderColor3 = 'OutlineColor';
+    }, true);
+
+    local BarFill = Library:Create('Frame', {
+        BackgroundColor3 = Library.AccentColor;
+        BorderSizePixel = 0;
+        Size = UDim2.new(0, 0, 1, 0);
+        ZIndex = Outer.ZIndex + 5;
+        Parent = BarOuter;
+    });
+
+    Library:AddToRegistry(BarFill, {
+        BackgroundColor3 = 'AccentColor';
+    }, true);
+
+    local BarText = Library:CreateLabel({
+        Size = UDim2.new(1, 0, 1, 0);
+        Text = '';
+        TextSize = 11;
+        TextXAlignment = Enum.TextXAlignment.Center;
+        ZIndex = Outer.ZIndex + 6;
+        Parent = BarOuter;
+    }, true);
+
     for Index = 1, Panel.MaxLines do
         local Line = Library:CreateLabel({
             Size = UDim2.new(1, 0, 0, Info.LineHeight or 16);
@@ -2782,13 +2817,18 @@ function Library:CreateHudPanel(Info)
 
     function Panel:Resize()
         local Count = 0;
+        local ExtraHeight = 0;
+        if BarOuter.Visible then
+            ExtraHeight = ExtraHeight + (Info.BarHeight or 8);
+        end;
+
         for _, Line in next, self.Lines do
             if Line.Visible then
                 Count = Count + 1;
             end;
         end;
 
-        local Height = 23 + (Count * (Info.LineHeight or 16)) + 4;
+        local Height = 23 + ExtraHeight + (Count * (Info.LineHeight or 16)) + 4;
         Outer.Size = UDim2.fromOffset(Info.Width or 230, Height);
     end;
 
@@ -2812,6 +2852,28 @@ function Library:CreateHudPanel(Info)
         self:Resize();
     end;
 
+    function Panel:SetBar(Percent, Text, Color)
+        Percent = math.clamp(tonumber(Percent) or 0, 0, 1);
+        BarOuter.Visible = true;
+        BarFill.Size = UDim2.new(Percent, 0, 1, 0);
+        BarText.Text = Text or '';
+
+        if typeof(Color) == 'Color3' then
+            BarFill.BackgroundColor3 = Color;
+            local Reg = Library.RegistryMap[BarFill];
+            if Reg then
+                Reg.Properties.BackgroundColor3 = Color;
+            end;
+        end;
+
+        self:Resize();
+    end;
+
+    function Panel:HideBar()
+        BarOuter.Visible = false;
+        self:Resize();
+    end;
+
     function Panel:Destroy()
         Outer:Destroy();
     end;
@@ -2820,6 +2882,9 @@ function Library:CreateHudPanel(Info)
     Panel.Inner = Inner;
     Panel.Title = Title;
     Panel.Container = Container;
+    Panel.BarOuter = BarOuter;
+    Panel.BarFill = BarFill;
+    Panel.BarText = BarText;
 
     Library:MakeDraggable(Outer, 24);
     Panel:Resize();
