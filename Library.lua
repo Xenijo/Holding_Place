@@ -1024,6 +1024,10 @@ do
             Info.Mode = 'Toggle'
         end
 
+        local function GetKeyDisplayText(Value)
+            return Value == 'None' and 'Bind' or Value;
+        end
+
         local PickOuter = Library:Create('Frame', {
             BackgroundColor3 = Color3.new(0, 0, 0);
             BorderColor3 = Color3.new(0, 0, 0);
@@ -1049,7 +1053,7 @@ do
         local DisplayLabel = Library:CreateLabel({
             Size = UDim2.new(1, 0, 1, 0);
             TextSize = 13;
-            Text = Info.Default;
+            Text = GetKeyDisplayText(Info.Default);
             TextWrapped = true;
             ZIndex = 8;
             Parent = PickInner;
@@ -1153,7 +1157,7 @@ do
 
             local State = KeyPicker:GetState();
 
-            ContainerLabel.Text = string.format('[%s] %s (%s)', KeyPicker.Value, Info.Text, KeyPicker.Mode);
+            ContainerLabel.Text = string.format('[%s] %s (%s)', GetKeyDisplayText(KeyPicker.Value), Info.Text, KeyPicker.Mode);
 
             ContainerLabel.Visible = true;
             ContainerLabel.TextColor3 = State and Library.AccentColor or Library.FontColor;
@@ -1179,7 +1183,7 @@ do
             if KeyPicker.Mode == 'Always' then
                 return true;
             elseif KeyPicker.Mode == 'Hold' then
-                if KeyPicker.Value == 'None' then
+                if KeyPicker.Value == 'None' or KeyPicker.Value == 'Bind' then
                     return false;
                 end
 
@@ -1198,7 +1202,7 @@ do
 
         function KeyPicker:SetValue(Data)
             local Key, Mode = Data[1], Data[2];
-            DisplayLabel.Text = Key;
+            DisplayLabel.Text = GetKeyDisplayText(Key);
             KeyPicker.Value = Key;
             ModeButtons[Mode]:Select();
             KeyPicker:Update();
@@ -1267,7 +1271,7 @@ do
                     Break = true;
                     Picking = false;
 
-                    DisplayLabel.Text = Key;
+                    DisplayLabel.Text = GetKeyDisplayText(Key);
                     KeyPicker.Value = Key;
 
                     Library:SafeCallback(KeyPicker.ChangedCallback, Input.KeyCode or Input.UserInputType)
