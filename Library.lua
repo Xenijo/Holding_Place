@@ -1024,8 +1024,12 @@ do
             Info.Mode = 'Toggle'
         end
 
+        local function KeyIsUnbound(Value)
+            return Value == nil or Value == '' or Value == 'None' or Value == 'Bind';
+        end
+
         local function GetKeyDisplayText(Value)
-            return Value == 'None' and 'Bind' or Value;
+            return KeyIsUnbound(Value) and '' or Value;
         end
 
         local PickOuter = Library:Create('Frame', {
@@ -1156,10 +1160,11 @@ do
             end;
 
             local State = KeyPicker:GetState();
+            local DisplayKey = GetKeyDisplayText(KeyPicker.Value);
 
-            ContainerLabel.Text = string.format('[%s] %s (%s)', GetKeyDisplayText(KeyPicker.Value), Info.Text, KeyPicker.Mode);
+            ContainerLabel.Text = DisplayKey ~= '' and string.format('[%s] %s (%s)', DisplayKey, Info.Text, KeyPicker.Mode) or '';
 
-            ContainerLabel.Visible = true;
+            ContainerLabel.Visible = DisplayKey ~= '';
             ContainerLabel.TextColor3 = State and Library.AccentColor or Library.FontColor;
 
             Library.RegistryMap[ContainerLabel].Properties.TextColor3 = State and 'AccentColor' or 'FontColor';
@@ -1183,7 +1188,7 @@ do
             if KeyPicker.Mode == 'Always' then
                 return true;
             elseif KeyPicker.Mode == 'Hold' then
-                if KeyPicker.Value == 'None' or KeyPicker.Value == 'Bind' then
+                if KeyIsUnbound(KeyPicker.Value) then
                     return false;
                 end
 
