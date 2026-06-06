@@ -44,6 +44,7 @@ local Library = {
 
     Signals = {};
     ScreenGui = ScreenGui;
+    WatermarkVisible = true;
 };
 
 local RainbowStep = 0
@@ -1209,7 +1210,9 @@ do
             local Key, Mode = Data[1], Data[2];
             DisplayLabel.Text = GetKeyDisplayText(Key);
             KeyPicker.Value = Key;
-            ModeButtons[Mode]:Select();
+            if ModeButtons[Mode] then
+                ModeButtons[Mode]:Select();
+            end
             KeyPicker:Update();
         end;
 
@@ -1264,13 +1267,24 @@ do
                 local Event;
                 Event = InputService.InputBegan:Connect(function(Input)
                     local Key;
+                    local CallbackValue;
 
                     if Input.UserInputType == Enum.UserInputType.Keyboard then
-                        Key = Input.KeyCode.Name;
+                        if Input.KeyCode == Enum.KeyCode.Escape then
+                            Key = '';
+                            CallbackValue = '';
+                        else
+                            Key = Input.KeyCode.Name;
+                            CallbackValue = Input.KeyCode;
+                        end
                     elseif Input.UserInputType == Enum.UserInputType.MouseButton1 then
                         Key = 'MB1';
+                        CallbackValue = Input.UserInputType;
                     elseif Input.UserInputType == Enum.UserInputType.MouseButton2 then
                         Key = 'MB2';
+                        CallbackValue = Input.UserInputType;
+                    else
+                        return;
                     end;
 
                     Break = true;
@@ -1279,8 +1293,8 @@ do
                     DisplayLabel.Text = GetKeyDisplayText(Key);
                     KeyPicker.Value = Key;
 
-                    Library:SafeCallback(KeyPicker.ChangedCallback, Input.KeyCode or Input.UserInputType)
-                    Library:SafeCallback(KeyPicker.Changed, Input.KeyCode or Input.UserInputType)
+                    Library:SafeCallback(KeyPicker.ChangedCallback, CallbackValue)
+                    Library:SafeCallback(KeyPicker.Changed, CallbackValue)
 
                     Library:AttemptSave();
 
@@ -3620,13 +3634,14 @@ do
 end;
 
 function Library:SetWatermarkVisibility(Bool)
-    Library.Watermark.Visible = Bool;
+    Library.WatermarkVisible = Bool == true;
+    Library.Watermark.Visible = Library.WatermarkVisible;
 end;
 
 function Library:SetWatermark(Text)
     local X, Y = Library:GetTextBounds(Text, Library.Font, 14);
     Library.Watermark.Size = UDim2.new(0, X + 15, 0, (Y * 1.5) + 3);
-    Library:SetWatermarkVisibility(true)
+    Library.Watermark.Visible = Library.WatermarkVisible == true;
 
     Library.WatermarkText.Text = Text;
 end;
